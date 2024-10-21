@@ -262,14 +262,31 @@ class Toolbar {
     gallery = null;
     el = createElement(`<div class="plga-toolbar">
         <div class="plga-toolbar-left"></div>
-        <div class="plga-toolbar-right"><svg xmlns="http://www.w3.org/2000/svg" class="plga-icon plga-icon-close" viewBox="0 0 16 16"><path d="M13.854 2.146a.5.5 0 0 1 0 .708l-11 11a.5.5 0 0 1-.708-.708l11-11a.5.5 0 0 1 .708 0Z"/><path d="M2.146 2.146a.5.5 0 0 0 0 .708l11 11a.5.5 0 0 0 .708-.708l-11-11a.5.5 0 0 0-.708 0Z"/></svg></div>
+        <div class="plga-toolbar-right"></div>
     </div>`);
 
     constructor(gallery) {
         this.gallery = gallery;
-        const closeIcon = this.el.querySelector('.plga-icon-close');
-        closeIcon.onclick = () => gallery.close();
         gallery.shadeMask.el.append(this.el);
+
+        // Register default widget
+        this.register({
+            html: '<div class="plga-counter"></div>',
+            onInit: (el) => {
+                gallery.on('slide', (current) => {
+                    const { gIndex, index } = gallery.current;
+                    const total = gallery.groups[gIndex].length;
+                    el.innerHTML = (index+1) + '/' + total;
+                });
+            }
+        });
+        this.register({
+            position: 'right',
+            html: '<svg xmlns="http://www.w3.org/2000/svg" class="plga-icon" viewBox="0 0 32 32" width="32"><path d="M24 10l-2-2-6 6-6-6-2 2 6 6-6 6 2 2 6-6 6 6 2-2-6-6z"/></svg>',
+            onInit: (el) => {
+                el.onclick = () => gallery.close();
+            }
+        });
     }
 
     register(options) {
@@ -294,8 +311,8 @@ class ShadeMask {
     gallery = null;
     isOpened = false;
     el = createElement(`<div class="plga-shade-mask">
-        <svg xmlns="http://www.w3.org/2000/svg" class="plga-icon plga-icon-prev" viewBox="0 0 16 16"><path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg>
-        <svg xmlns="http://www.w3.org/2000/svg" class="plga-icon plga-icon-next" viewBox="0 0 16 16"><path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg>
+        <svg class="plga-icon plga-icon-prev" viewBox="0 0 60 60" width="48"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
+        <svg class="plga-icon plga-icon-next" viewBox="0 0 60 60" width="48" transform="scale(-1,1)"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
     </div>`);
 
     constructor(gallery) {
@@ -350,12 +367,12 @@ class ShadeMask {
             }
             .plga-icon {
                 z-index: 999;
-                width: 24px;
-                height: 24px;
                 fill: currentcolor;
                 cursor: pointer;
                 opacity: .6;
                 transition: all .3s;
+                stroke: rgba(0,0,0,.3);
+                stroke-width: .2;
             }
             .plga-icon:hover {
                 opacity: 1;
@@ -372,7 +389,7 @@ class ShadeMask {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                background: blue;
+                text-shadow: 1px 1px 5px rgba(0,0,0,.3);
             }
             .plga-toolbar>div {
                 display: flex;

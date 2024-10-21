@@ -38,15 +38,6 @@
 const pg = new PlainGallery('main', 'a');
 
 pg.toolbar.register({
-  html: '<b>test</b>',
-  onInit: function (el) {
-    pg.on('slide', (current) => {
-      el.innerHTML = (current.index);
-    });
-  }
-});
-
-pg.toolbar.register({
   position: 'right',
   html: '<b>test</b>',
   onInit: function (el) {
