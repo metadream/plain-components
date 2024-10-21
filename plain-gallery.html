@@ -22,13 +22,22 @@
   </a>
 </main>
 
+<main>
+  <a href="https://images.unsplash.com/photo-1721332153370-56d7cc352d63">
+    <img src="https://images.unsplash.com/photo-1721332153370-56d7cc352d63?h=320">
+  </a>
+  <a href="https://images.unsplash.com/photo-1729206861574-32a7f8f763f6">
+    <img src="https://images.unsplash.com/photo-1729206861574-32a7f8f763f6?w=320">
+  </a>
+</main>
+
 <button onclick="pg.open(4)">open</button>
 
 <script src="plain-gallery.js"></script>
 <script>
-const pg = new PlainGallery('main a');
+const pg = new PlainGallery('main', 'a');
 
-pg.toolbar.registerWidget({
+pg.toolbar.register({
   html: '<b>test</b>',
   onInit: function (el) {
     pg.on('slide', (current) => {
@@ -37,7 +46,7 @@ pg.toolbar.registerWidget({
   }
 });
 
-pg.toolbar.registerWidget({
+pg.toolbar.register({
   position: 'right',
   html: '<b>test</b>',
   onInit: function (el) {

@@ -2,28 +2,35 @@
 class PlainGallery extends EventTarget {
 
     current = null;
-    thumbnails = [];
+    groups = [];
     shadeMask = new ShadeMask(this);
     toolbar = new Toolbar(this);
 
-    constructor(target) {
+    constructor(gallery, children) {
         super();
         window.addEventListener('resize', this.#adaptViewport.bind(this));
         this.#bindSlideEvents();
 
         // Traverse all thumbnail items
-        const items = document.querySelectorAll(target);
-        let index = 0;
-        for (const item of items) {
-            const thumbnail = item.querySelector('img');
-            if (!thumbnail) continue;
+        let gIndex = 0;
+        for (const group of document.querySelectorAll(gallery)) {
+            const thumbnails = [];
+            this.groups.push(thumbnails);
 
-            this.thumbnails.push(thumbnail);
-            thumbnail.index = index++;
-            thumbnail.addEventListener('click', e => {
-                e.preventDefault();
-                this.#openViewport(e.target);
-            });
+            let index = 0;
+            for (const item of group.querySelectorAll(children)) {
+                const thumbnail = item.querySelector('img');
+                if (!thumbnail) continue;
+
+                thumbnails.push(thumbnail);
+                thumbnail.gIndex = gIndex;
+                thumbnail.index = index++;
+                thumbnail.addEventListener('click', e => {
+                    e.preventDefault();
+                    this.#openViewport(e.target);
+                });
+            }
+            gIndex++;
         }
     }
 
@@ -62,7 +69,8 @@ class PlainGallery extends EventTarget {
             // Slide the current image out
             // Stop sliding if thumbnail is null (first or last image)
             const { direction } = e.currentTarget;
-            const thumbnail = this.#getThumbnail(this.current.index + direction);
+            const { gIndex, index } = this.current;
+            const thumbnail = this.#getThumbnail(gIndex, index + direction);
             if (!thumbnail) return;
             this.#slideImage(direction, true);
 
@@ -123,6 +131,7 @@ class PlainGallery extends EventTarget {
 
         // Scroll to zoom
         img.onwheel = function (e) {
+            e.preventDefault();
             this.scale = e.wheelDelta > 0 ? this.scale * 1.2 : this.scale / 1.2;
             if (this.scale > this.maxScale) this.scale = this.maxScale;
             if (this.scale < this.minScale) this.scale = this.minScale;
@@ -133,9 +142,10 @@ class PlainGallery extends EventTarget {
         }
     }
 
-    #getThumbnail(index) {
-        const max = this.thumbnails.length - 1;
-        return index < 0 || index > max ? null : this.thumbnails[index];
+    #getThumbnail(gIndex, index) {
+        const thumbnails = this.groups[gIndex];
+        const max = thumbnails.length - 1;
+        return index < 0 || index > max ? null : thumbnails[index];
     }
 
     #slideImage(direction, removeEl) {
@@ -151,8 +161,8 @@ class PlainGallery extends EventTarget {
     }
 
     #changeSlideArrows() {
-        const max = this.thumbnails.length - 1;
-        const index = this.current.index;
+        const { gIndex, index } = this.current;
+        const max = this.groups[gIndex].length - 1;
         const { prevBtn, nextBtn } = this.shadeMask;
         prevBtn.style.visibility = index == 0 ? 'hidden' : 'visible';
         nextBtn.style.visibility = index == max ? 'hidden' : 'visible';
@@ -200,6 +210,7 @@ class PlainGallery extends EventTarget {
     #cloneImage(source) {
         const rect = source.getBoundingClientRect();
         const clone = source.cloneNode(true);
+        clone.gIndex = source.gIndex;
         clone.index = source.index;
         clone.className = 'plga-slide-item';
         clone.style.left = rect.left;
@@ -261,7 +272,7 @@ class Toolbar {
         gallery.shadeMask.el.append(this.el);
     }
 
-    registerWidget(options) {
+    register(options) {
         const { position, html, onInit } = options;
         const widget = createElement(html);
 
