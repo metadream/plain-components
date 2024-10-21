@@ -1,6 +1,6 @@
 <style>
   img {
-    opacity: .1
+    opacity: 1
   }
 </style>
 
@@ -27,8 +27,22 @@
 <script src="plain-gallery.js"></script>
 <script>
 const pg = new PlainGallery('main a');
-pg.on('slide', (current) => {
-  console.log(current.index);
+
+pg.toolbar.registerWidget({
+  html: '<b>test</b>',
+  onInit: function (el) {
+    pg.on('slide', (current) => {
+      el.innerHTML = (current.index);
+    });
+  }
+});
+
+pg.toolbar.registerWidget({
+  position: 'right',
+  html: '<b>test</b>',
+  onInit: function (el) {
+    el.onclick = () => console.log('123');
+  }
 });
 
 //setTimeout(() => pg.close(), 3000)

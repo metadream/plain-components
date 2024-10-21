@@ -1,9 +1,10 @@
 /** Core Class */
 class PlainGallery extends EventTarget {
 
-    shadeMask = new ShadeMask(this);
-    thumbnails = [];
     current = null;
+    thumbnails = [];
+    shadeMask = new ShadeMask(this);
+    toolbar = new Toolbar(this);
 
     constructor(target) {
         super();
@@ -200,7 +201,7 @@ class PlainGallery extends EventTarget {
         const rect = source.getBoundingClientRect();
         const clone = source.cloneNode(true);
         clone.index = source.index;
-        clone.className = 'pg-slide-item';
+        clone.className = 'plga-slide-item';
         clone.style.left = rect.left;
         clone.style.top = rect.top;
 
@@ -226,7 +227,7 @@ class PlainGallery extends EventTarget {
     }
 
     open(index) {
-        const source = this.#getThumbnail(index);
+        const source = this.#getThumbnail(index ?? 0);
         this.#openViewport(source);
     }
 
@@ -247,25 +248,31 @@ class PlainGallery extends EventTarget {
 /** Toolbar Component */
 class Toolbar {
 
-    el = document.createElement('div');
+    gallery = null;
+    el = createElement(`<div class="plga-toolbar">
+        <div class="plga-toolbar-left"></div>
+        <div class="plga-toolbar-right"><svg xmlns="http://www.w3.org/2000/svg" class="plga-icon plga-icon-close" viewBox="0 0 16 16"><path d="M13.854 2.146a.5.5 0 0 1 0 .708l-11 11a.5.5 0 0 1-.708-.708l11-11a.5.5 0 0 1 .708 0Z"/><path d="M2.146 2.146a.5.5 0 0 0 0 .708l11 11a.5.5 0 0 0 .708-.708l-11-11a.5.5 0 0 0-.708 0Z"/></svg></div>
+    </div>`);
 
-    constructor(shadeMask) {
-        this.el.className = 'pg-toolbar';
+    constructor(gallery) {
+        this.gallery = gallery;
+        const closeIcon = this.el.querySelector('.plga-icon-close');
+        closeIcon.onclick = () => gallery.close();
+        gallery.shadeMask.el.append(this.el);
+    }
 
-        const left = document.createElement('div');
-        left.innerHTML = 'left'
-        const right = document.createElement('div');
-        right.innerHTML = 'right'
+    registerWidget(options) {
+        const { position, html, onInit } = options;
+        const widget = createElement(html);
 
-        const icon = document.createElement('a');
-        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 16 16"><path d="M13.854 2.146a.5.5 0 0 1 0 .708l-11 11a.5.5 0 0 1-.708-.708l11-11a.5.5 0 0 1 .708 0Z"/><path d="M2.146 2.146a.5.5 0 0 0 0 .708l11 11a.5.5 0 0 0 .708-.708l-11-11a.5.5 0 0 0-.708 0Z"/></svg>';
-        icon.onclick = () => shadeMask.fadeOut();
-        right.append(icon);
-
-        this.el.append(left);
-        this.el.append(right);
-
-        shadeMask.modal.append(this.el);
+        if (position == 'right') {
+            const right = this.el.querySelector('.plga-toolbar-right');
+            right.insertBefore(widget, right.firstChild);
+        } else {
+            const left = this.el.querySelector('.plga-toolbar-left');
+            left.append(widget);
+        }
+        options.onInit(widget, this.gallery);
     }
 
 }
@@ -273,61 +280,52 @@ class Toolbar {
 /** Shade Mask Component */
 class ShadeMask {
 
-    modal = document.createElement('div');
-    prevBtn = document.createElement('a');
-    nextBtn = document.createElement('a');
+    gallery = null;
     isOpened = false;
-    toolbar = new Toolbar(this);
+    el = createElement(`<div class="plga-shade-mask">
+        <svg xmlns="http://www.w3.org/2000/svg" class="plga-icon plga-icon-prev" viewBox="0 0 16 16"><path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="plga-icon plga-icon-next" viewBox="0 0 16 16"><path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg>
+    </div>`);
 
     constructor(gallery) {
         this.gallery = gallery;
         this.embedStyles();
 
-        // Add previous button to modal
-        this.prevBtn.className = 'pg-arrow-icon';
-        this.prevBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 16 16"><path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg>';
+        this.prevBtn = this.el.querySelector('.plga-icon-prev');
+        this.nextBtn = this.el.querySelector('.plga-icon-next');
         this.prevBtn.direction = -1;
-        this.modal.append(this.prevBtn);
-
-        // Add next button to modal
-        this.nextBtn.className = 'pg-arrow-icon';
-        this.nextBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 16 16"><path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg>';
         this.nextBtn.direction = 1;
-        this.modal.append(this.nextBtn);
 
-        // Add modal mask to body
-        this.modal.className = 'pg-shade-mask';
-        this.modal.addEventListener('click', this.fadeOut.bind(this));
+        this.el.addEventListener('click', this.fadeOut.bind(this));
         window.addEventListener('keyup', this.fadeOut.bind(this));
-        document.body.append(this.modal);
+        document.body.append(this.el);
     }
 
     fadeIn() {
         this.updateImage();
-        this.modal.ontransitionend = null;
-        this.modal.style.display = 'flex';
-        setTimeout(() => this.modal.style.background = 'rgba(0, 0, 0, .8)');
+        this.el.ontransitionend = null;
+        this.el.style.display = 'flex';
+        setTimeout(() => this.el.style.background = 'rgba(0, 0, 0, .8)');
         this.isOpened = true;
     }
 
     fadeOut(e) {
+        const { current, toolbar } = this.gallery;
         if (e && e.keyCode && e.keyCode !== 27) return;
-        if (e && e.target != this.modal) return;
-        this.modal.style.background = 'rgba(0, 0, 0, 0)';
-        this.modal.ontransitionend = () => this.modal.style.display = 'none';
+        if (e && (e.target == current || toolbar.el.contains(e.target))) return;
+        this.el.style.background = 'rgba(0, 0, 0, 0)';
+        this.el.ontransitionend = () => this.el.style.display = 'none';
         this.gallery.current.restore();
         this.isOpened = false;
     }
 
     updateImage() {
-        this.modal.append(this.gallery.current);
+        this.el.append(this.gallery.current);
     }
 
     embedStyles() {
-        const style = document.createElement('style');
-        document.head.append(style);
-        style.textContent = `
-            .pg-shade-mask {
+        document.head.append(createElement(`<style>
+            .plga-shade-mask {
                 user-select: none;
                 display: none;
                 justify-content: space-between;
@@ -336,9 +334,11 @@ class ShadeMask {
                 z-index: 998;
                 top: 0; left: 0; right: 0; bottom: 0;
                 background: rgba(0, 0, 0, 0);
+                color: #fff;
                 transition: all .3s;
             }
-            .pg-shade-mask svg.icon {
+            .plga-icon {
+                z-index: 999;
                 width: 24px;
                 height: 24px;
                 fill: currentcolor;
@@ -346,37 +346,47 @@ class ShadeMask {
                 opacity: .6;
                 transition: all .3s;
             }
-            .pg-shade-mask svg.icon:hover {
+            .plga-icon:hover {
                 opacity: 1;
             }
-            .pg-arrow-icon {
-                z-index: 999;
+            .plga-icon-prev, .plga-icon-next {
                 padding: 20px;
-                color: #fff;
             }
-            .pg-toolbar {
+            .plga-toolbar {
                 position: absolute;
+                z-index: 999;
                 top: 0; left: 0; right:0;
                 height: 60px;
                 padding: 0 15px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                color: #fff;
-                background: red;
+                background: blue;
             }
-            .pg-toolbar>div {
+            .plga-toolbar>div {
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 15px;
             }
-            .pg-slide-item {
+            .plga-slide-item {
                 position: absolute;
                 cursor: zoom-in;
                 transform: translate(var(--transX), var(--transY)) scale(var(--scale));
                 transition: all .3s;
             }
-        `;
+        </style>`.replace(/\s+/g, ' ')));
     }
 
+}
+
+function createElement(content) {
+    if (!content) return;
+    content = content.replace(/[\t\r\n]/mg, '').trim();
+
+    if (content.indexOf('<') === 0) {
+        const template = document.createElement('template');
+        template.innerHTML = content;
+        return template.content.firstElementChild.cloneNode(true);
+    }
+    return document.createElement(content);
 }
