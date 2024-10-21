@@ -29,10 +29,10 @@ class PlainGallery extends EventTarget {
 
     #openViewport(source) {
         this.current = this.#cloneImage(source);
+        this.#changeSlideArrows();
+        this.#bindZoomEvents();
         this.shadeMask.fadeIn();
         this.#adaptViewport(true);
-        this.#bindZoomEvents();
-        this.#changeSlideArrows();
 
         this.fire('open', this.current);
         this.fire('slide', this.current);
@@ -70,8 +70,8 @@ class PlainGallery extends EventTarget {
             this.current = this.#cloneImage(thumbnail);
             this.#adaptViewport(false);
             this.#slideImage(-direction, false); // Hide from the screen
-            this.#bindZoomEvents();
             this.#changeSlideArrows();
+            this.#bindZoomEvents();
             this.shadeMask.updateImage();
 
             setTimeout(() => {
