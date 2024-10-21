@@ -369,7 +369,7 @@ class ShadeMask {
                 z-index: 999;
                 fill: currentcolor;
                 cursor: pointer;
-                opacity: .6;
+                opacity: .8;
                 transition: all .3s;
                 stroke: rgba(0,0,0,.3);
                 stroke-width: .2;
