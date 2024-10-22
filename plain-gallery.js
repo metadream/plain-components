@@ -217,18 +217,12 @@ class PlainGallery extends EventTarget {
 
     #cloneImage(source) {
         const { ordinal, index } = source;
-//        const image = this.dataSource[ordinal][index];
-//        if (image.isClone) {
-//            return image;
-//        }
-
         const rect = source.getBoundingClientRect();
         const clone = source.cloneNode(true);
-//        this.dataSource[ordinal][index] = clone;
-        clone.isClone = true;
+        clone.originalUrl = source.originalUrl;
         clone.ordinal = ordinal;
         clone.index = index;
-//        clone.src = source.originalUrl;
+
         clone.className = 'plga-slide-item';
         clone.style.left = rect.left;
         clone.style.top = rect.top;
