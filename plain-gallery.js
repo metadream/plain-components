@@ -55,16 +55,17 @@ class PlainGallery extends EventTarget {
     #adaptViewport(delay) {
         if (!this.shadeMask.isOpened) return;
         const scrRatio = innerWidth / innerHeight;
-        const img = this.current;
+        const zoomWrap = this.current;
 
-        img.scale = img.aspectRatio > scrRatio ? innerWidth / img.width : innerHeight / img.height;
-        img.initScale = img.scale;
-        img.minScale = img.scale / 2;
-        img.maxScale = img.scale * 10;
-        img.initX = img.transX = innerWidth / 2 - img.centerPoint.x;
-        img.initY = img.transY = innerHeight / 2 - img.centerPoint.y;
+        zoomWrap.scale = zoomWrap.aspectRatio > scrRatio
+            ? innerWidth / zoomWrap.width : innerHeight / zoomWrap.height;
+        zoomWrap.initScale = zoomWrap.scale;
+        zoomWrap.minScale = zoomWrap.scale / 2;
+        zoomWrap.maxScale = zoomWrap.scale * 10;
+        zoomWrap.initX = zoomWrap.transX = innerWidth / 2 - zoomWrap.centerPoint.x;
+        zoomWrap.initY = zoomWrap.transY = innerHeight / 2 - zoomWrap.centerPoint.y;
 
-        const adapt = () => { img.translating(); img.scaling(); }
+        const adapt = () => { zoomWrap.translating(); zoomWrap.scaling(); }
         delay ? setTimeout(adapt) : adapt();
     }
 
@@ -98,10 +99,10 @@ class PlainGallery extends EventTarget {
 
     #bindZoomEvents() {
         const gallery = this;
-        const img = this.current;
+        const zoomWrap = this.current;
 
         // Drag to preview
-        img.onpointerdown = function (e) {
+        zoomWrap.onpointerdown = function (e) {
             e.preventDefault();
             this.moved = false;
             this.style.transition = 'unset';
@@ -125,8 +126,8 @@ class PlainGallery extends EventTarget {
 
                 // Click to zoom in/out
                 if (e.type == 'pointerup' && !this.moved) {
-                    this.transX = innerWidth - img.centerPoint.x - e.clientX;
-                    this.transY = innerHeight - img.centerPoint.y - e.clientY;
+                    this.transX = innerWidth - this.centerPoint.x - e.clientX;
+                    this.transY = innerHeight - this.centerPoint.y - e.clientY;
                     this.scale = this.scale <= this.initScale ? this.scale *= 2 : this.initScale;
                     this.translating();
                     this.scaling(this.scale);
@@ -138,7 +139,7 @@ class PlainGallery extends EventTarget {
         };
 
         // Scroll to zoom
-        img.onwheel = function (e) {
+        zoomWrap.onwheel = function (e) {
             e.preventDefault();
             this.scale = e.wheelDelta > 0 ? this.scale * 1.2 : this.scale / 1.2;
             if (this.scale > this.maxScale) this.scale = this.maxScale;
@@ -157,14 +158,14 @@ class PlainGallery extends EventTarget {
     }
 
     #slideImage(direction, removeEl) {
-        const img = this.current;
-        direction > 0 ? img.transX -= innerWidth : img.transX += innerWidth;
-        img.scale = img.initScale;
-        img.translating();
-        img.scaling();
+        const zoomWrap = this.current;
+        direction > 0 ? zoomWrap.transX -= innerWidth : zoomWrap.transX += innerWidth;
+        zoomWrap.scale = zoomWrap.initScale;
+        zoomWrap.translating();
+        zoomWrap.scaling();
 
         if (removeEl) {
-            img.ontransitionend = () => img.remove();
+            zoomWrap.ontransitionend = () => zoomWrap.remove();
         }
     }
 
@@ -177,75 +178,82 @@ class PlainGallery extends EventTarget {
     }
 
     #switchZoomCursor() {
-        const img = this.current;
-        img.style.cursor = img.scale <= img.initScale ? 'zoom-in' : 'zoom-out';
+        const zoomWrap = this.current;
+        zoomWrap.style.cursor = zoomWrap.scale <= zoomWrap.initScale ? 'zoom-in' : 'zoom-out';
     }
 
     #checkImageBoundary() {
-        const img = this.current;
-        const width = img.width * img.scale;
-        const height = img.height * img.scale;
+        const zoomWrap = this.current;
+        const width = zoomWrap.width * zoomWrap.scale;
+        const height = zoomWrap.height * zoomWrap.scale;
         const bound = {
-            x1: img.initX, x2: img.initX,
-            y1: img.initY, y2: img.initY
+            x1: zoomWrap.initX, x2: zoomWrap.initX,
+            y1: zoomWrap.initY, y2: zoomWrap.initY
         }
         if (width > innerWidth) {
-            bound.x1 = width / 2 - img.centerPoint.x;
+            bound.x1 = width / 2 - zoomWrap.centerPoint.x;
             bound.x2 = bound.x1 - (width - innerWidth);
         }
         if (height > innerHeight) {
-            bound.y1 = height / 2 - img.centerPoint.y;
+            bound.y1 = height / 2 - zoomWrap.centerPoint.y;
             bound.y2 = bound.y1 - (height - innerHeight);
         }
-        if (img.transX > bound.x1) {
-            img.transX = bound.x1;
-            img.translating();
+        if (zoomWrap.transX > bound.x1) {
+            zoomWrap.transX = bound.x1;
+            zoomWrap.translating();
         }
-        if (img.transX < bound.x2) {
-            img.transX = bound.x2;
-            img.translating();
+        if (zoomWrap.transX < bound.x2) {
+            zoomWrap.transX = bound.x2;
+            zoomWrap.translating();
         }
-        if (img.transY > bound.y1) {
-            img.transY = bound.y1;
-            img.translating();
+        if (zoomWrap.transY > bound.y1) {
+            zoomWrap.transY = bound.y1;
+            zoomWrap.translating();
         }
-        if (img.transY < bound.y2) {
-            img.transY = bound.y2;
-            img.translating();
+        if (zoomWrap.transY < bound.y2) {
+            zoomWrap.transY = bound.y2;
+            zoomWrap.translating();
         }
     }
 
     #cloneImage(source) {
         const { ordinal, index } = source;
         const rect = source.getBoundingClientRect();
-        const clone = source.cloneNode(true);
-        clone.originalUrl = source.originalUrl;
-        clone.ordinal = ordinal;
-        clone.index = index;
+        const placeholder = source.cloneNode(true);
+        placeholder.className = 'plga-image-placeholder'
+        placeholder.src = source.originalUrl+'?'+Math.random();
 
-        clone.className = 'plga-slide-item';
-        clone.style.left = rect.left;
-        clone.style.top = rect.top;
+        const zoomWrap = createElement('<div class="plga-zoom-wrap"></div>');
+        zoomWrap.style.left = rect.left + 'px';
+        zoomWrap.style.top = rect.top + 'px';
+        zoomWrap.style.width = rect.width + 'px';
+        zoomWrap.style.height = rect.height + 'px';
+        zoomWrap.width = rect.width;
+        zoomWrap.height = rect.height;
+        zoomWrap.ordinal = ordinal;
+        zoomWrap.index = index;
+        zoomWrap.append(placeholder);
+        this.shadeMask.el.append(zoomWrap);
 
-        clone.aspectRatio = rect.width / rect.height;
-        clone.centerPoint = {
+        zoomWrap.aspectRatio = rect.width / rect.height;
+        zoomWrap.centerPoint = {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
         }
 
-        clone.translating = (x, y) => {
-            clone.style.setProperty('--transX', (x ?? clone.transX) + 'px');
-            clone.style.setProperty('--transY', (y ?? clone.transY) + 'px');
+        zoomWrap.translating = (x, y) => {
+            zoomWrap.style.setProperty('--transX', (x ?? zoomWrap.transX) + 'px');
+            zoomWrap.style.setProperty('--transY', (y ?? zoomWrap.transY) + 'px');
         }
-        clone.scaling = (scale) => {
-            clone.style.setProperty('--scale', scale ?? clone.scale);
+        zoomWrap.scaling = (scale) => {
+            zoomWrap.style.setProperty('--scale', scale ?? zoomWrap.scale);
         }
-        clone.restore = () => {
-            clone.translating(0, 0);
-            clone.scaling(1);
-            clone.ontransitionend = () => clone.remove();
+        zoomWrap.restore = () => {
+            zoomWrap.translating(0, 0);
+            zoomWrap.scaling(1);
+            zoomWrap.ontransitionend = () => zoomWrap.remove();
         }
-        return clone;
+        return zoomWrap;
     }
 
     open(ordinal, index) {
@@ -353,7 +361,7 @@ class ShadeMask {
     fadeOut(e) {
         const { current, toolbar } = this.gallery;
         if (e && e.keyCode && e.keyCode !== 27) return;
-        if (e && (e.target == current || toolbar.el.contains(e.target))) return;
+        if (e && (current.contains(e.target) || toolbar.el.contains(e.target))) return;
         this.el.style.background = 'rgba(0, 0, 0, 0)';
         this.el.ontransitionend = () => this.el.style.display = 'none';
         this.gallery.current.restore();
@@ -409,11 +417,15 @@ class ShadeMask {
                 align-items: center;
                 gap: 15px;
             }
-            .plga-slide-item {
+            .plga-zoom-wrap {
                 position: absolute;
                 cursor: zoom-in;
                 transform: translate(var(--transX), var(--transY)) scale(var(--scale));
                 transition: all .3s;
+            }
+            .plga-image-placeholder {
+                max-width: 100%;
+                max-height: 100%;
             }
         </style>`.replace(/\s+/g, ' ')));
     }
