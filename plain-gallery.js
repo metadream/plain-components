@@ -1,8 +1,14 @@
 /** Core Class */
 class PlainGallery extends EventTarget {
 
+    static Event = {
+        OPEN: 'open',
+        CHANGE: 'change',
+        CLOSE: 'close',
+    }
+
     current = null;
-    groups = [];
+    dataSource = [];
     shadeMask = new ShadeMask(this);
     toolbar = new Toolbar(this);
 
@@ -12,10 +18,10 @@ class PlainGallery extends EventTarget {
         this.#bindSlideEvents();
 
         // Traverse all thumbnail items
-        let gIndex = 0;
+        let ordinal = 0;
         for (const group of document.querySelectorAll(gallery)) {
             const thumbnails = [];
-            this.groups.push(thumbnails);
+            this.dataSource.push(thumbnails);
 
             let index = 0;
             for (const item of group.querySelectorAll(children)) {
@@ -23,14 +29,15 @@ class PlainGallery extends EventTarget {
                 if (!thumbnail) continue;
 
                 thumbnails.push(thumbnail);
-                thumbnail.gIndex = gIndex;
+                thumbnail.originalUrl = item.getAttribute('href');
+                thumbnail.ordinal = ordinal;
                 thumbnail.index = index++;
                 thumbnail.addEventListener('click', e => {
                     e.preventDefault();
                     this.#openViewport(e.target);
                 });
             }
-            gIndex++;
+            ordinal++;
         }
     }
 
@@ -41,8 +48,8 @@ class PlainGallery extends EventTarget {
         this.shadeMask.fadeIn();
         this.#adaptViewport(true);
 
-        this.fire('open', this.current);
-        this.fire('slide', this.current);
+        this.fire(PlainGallery.Event.OPEN, this.current);
+        this.fire(PlainGallery.Event.CHANGE, this.current);
     }
 
     #adaptViewport(delay) {
@@ -69,8 +76,8 @@ class PlainGallery extends EventTarget {
             // Slide the current image out
             // Stop sliding if thumbnail is null (first or last image)
             const { direction } = e.currentTarget;
-            const { gIndex, index } = this.current;
-            const thumbnail = this.#getThumbnail(gIndex, index + direction);
+            const { ordinal, index } = this.current;
+            const thumbnail = this.#getThumbnail(ordinal, index + direction);
             if (!thumbnail) return;
             this.#slideImage(direction, true);
 
@@ -84,7 +91,7 @@ class PlainGallery extends EventTarget {
 
             setTimeout(() => {
                 this.#slideImage(direction, false);
-                this.fire('slide', this.current);
+                this.fire(PlainGallery.Event.CHANGE, this.current);
             });
         }
     }
@@ -124,6 +131,7 @@ class PlainGallery extends EventTarget {
                     this.translating();
                     this.scaling(this.scale);
                 }
+
                 gallery.#switchZoomCursor();
                 gallery.#checkImageBoundary();
             }
@@ -142,8 +150,8 @@ class PlainGallery extends EventTarget {
         }
     }
 
-    #getThumbnail(gIndex, index) {
-        const thumbnails = this.groups[gIndex];
+    #getThumbnail(ordinal, index) {
+        const thumbnails = this.dataSource[ordinal];
         const max = thumbnails.length - 1;
         return index < 0 || index > max ? null : thumbnails[index];
     }
@@ -161,8 +169,8 @@ class PlainGallery extends EventTarget {
     }
 
     #changeSlideArrows() {
-        const { gIndex, index } = this.current;
-        const max = this.groups[gIndex].length - 1;
+        const { ordinal, index } = this.current;
+        const max = this.dataSource[ordinal].length - 1;
         const { prevBtn, nextBtn } = this.shadeMask;
         prevBtn.style.visibility = index == 0 ? 'hidden' : 'visible';
         nextBtn.style.visibility = index == max ? 'hidden' : 'visible';
@@ -208,10 +216,19 @@ class PlainGallery extends EventTarget {
     }
 
     #cloneImage(source) {
+        const { ordinal, index } = source;
+//        const image = this.dataSource[ordinal][index];
+//        if (image.isClone) {
+//            return image;
+//        }
+
         const rect = source.getBoundingClientRect();
         const clone = source.cloneNode(true);
-        clone.gIndex = source.gIndex;
-        clone.index = source.index;
+//        this.dataSource[ordinal][index] = clone;
+        clone.isClone = true;
+        clone.ordinal = ordinal;
+        clone.index = index;
+//        clone.src = source.originalUrl;
         clone.className = 'plga-slide-item';
         clone.style.left = rect.left;
         clone.style.top = rect.top;
@@ -237,13 +254,14 @@ class PlainGallery extends EventTarget {
         return clone;
     }
 
-    open(index) {
-        const source = this.#getThumbnail(index ?? 0);
+    open(ordinal, index) {
+        const source = this.#getThumbnail(ordinal ?? 0, index ?? 0);
         this.#openViewport(source);
     }
 
     close() {
         this.shadeMask.fadeOut();
+        this.fire(PlainGallery.Event.CLOSE, this.current);
     }
 
     on(type, callback) {
@@ -269,17 +287,18 @@ class Toolbar {
         this.gallery = gallery;
         gallery.shadeMask.el.append(this.el);
 
-        // Register default widget
+        // Register default widget: counter
         this.register({
             html: '<div class="plga-counter"></div>',
             onInit: (el) => {
-                gallery.on('slide', (current) => {
-                    const { gIndex, index } = gallery.current;
-                    const total = gallery.groups[gIndex].length;
+                gallery.on(PlainGallery.Event.CHANGE, (current) => {
+                    const { ordinal, index } = gallery.current;
+                    const total = gallery.dataSource[ordinal].length;
                     el.innerHTML = (index+1) + '/' + total;
                 });
             }
         });
+        // Register default widget: close button
         this.register({
             position: 'right',
             html: '<svg xmlns="http://www.w3.org/2000/svg" class="plga-icon" viewBox="0 0 32 32" width="32"><path d="M24 10l-2-2-6 6-6-6-2 2 6 6-6 6 2 2 6-6 6 6 2-2-6-6z"/></svg>',
@@ -312,7 +331,7 @@ class ShadeMask {
     isOpened = false;
     el = createElement(`<div class="plga-shade-mask">
         <svg class="plga-icon plga-icon-prev" viewBox="0 0 60 60" width="48"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
-        <svg class="plga-icon plga-icon-next" viewBox="0 0 60 60" width="48" transform="scale(-1,1)"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
+        <svg class="plga-icon plga-icon-next" viewBox="0 0 60 60" width="48" transform="rotate(180)"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
     </div>`);
 
     constructor(gallery) {
