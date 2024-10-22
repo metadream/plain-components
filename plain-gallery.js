@@ -221,7 +221,10 @@ class PlainGallery extends EventTarget {
         const rect = source.getBoundingClientRect();
         const placeholder = source.cloneNode(true);
         placeholder.className = 'plga-image-placeholder'
-        placeholder.src = source.originalUrl+'?'+Math.random();
+
+        const original = source.cloneNode(true);
+        original.className = 'plga-image-placeholder'
+        original.src = source.originalUrl+'?'+Math.random();
 
         const zoomWrap = createElement('<div class="plga-zoom-wrap"></div>');
         zoomWrap.style.left = rect.left + 'px';
@@ -233,6 +236,7 @@ class PlainGallery extends EventTarget {
         zoomWrap.ordinal = ordinal;
         zoomWrap.index = index;
         zoomWrap.append(placeholder);
+        zoomWrap.append(original);
         this.shadeMask.el.append(zoomWrap);
 
         zoomWrap.aspectRatio = rect.width / rect.height;
@@ -424,6 +428,7 @@ class ShadeMask {
                 transition: all .3s;
             }
             .plga-image-placeholder {
+                position: absolute;
                 max-width: 100%;
                 max-height: 100%;
             }
