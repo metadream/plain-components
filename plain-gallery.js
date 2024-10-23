@@ -1,6 +1,8 @@
 /** Core Class */
 class PlainGallery extends EventTarget {
 
+    static MIN_SCALE = 2;
+    static MAX_SCALE = 10;
     static Event = {
         OPEN: 'open',
         CHANGE: 'change',
@@ -12,16 +14,25 @@ class PlainGallery extends EventTarget {
     shadeMask = new ShadeMask(this);
     toolbar = new Toolbar(this);
 
+    /** Initialization Component */
     constructor(gallery, children) {
         super();
+        // Bind global window events
         window.addEventListener('resize', this.#adaptViewport.bind(this));
-        this.#bindSlideEvents();
+        window.addEventListener('keyup', this.#onEscPress.bind(this));
+
+        // Delegate gallery events
+        const { el } = this.shadeMask;
+        el.addEventListener('click', this.#onShadeMaskClick.bind(this));
+        el.addEventListener('wheel', this.#onZoomWrapWheel.bind(this));
+        el.addEventListener('pointerdown', this.#onZoomWrapDrag.bind(this));
 
         // Traverse all thumbnail items
-        let ordinal = 0;
+        let ordinal = -1; // Also refers to group index
         for (const group of document.querySelectorAll(gallery)) {
             const thumbnails = [];
             this.dataSource.push(thumbnails);
+            ordinal++;
 
             let index = 0;
             for (const item of group.querySelectorAll(children)) {
@@ -37,85 +48,85 @@ class PlainGallery extends EventTarget {
                     this.#openViewport(e.target);
                 });
             }
-            ordinal++;
         }
     }
 
+    /** Open gallery viewport */
     #openViewport(source) {
-        this.current = this.#cloneImage(source);
-        this.#changeSlideArrows();
-        this.#bindZoomEvents();
+        this.current = this.#createZoomWrap(source);
         this.shadeMask.fadeIn();
+        this.#toggleSlideArrows();
         this.#adaptViewport(true);
 
+        // Dispatch custom events
         this.fire(PlainGallery.Event.OPEN, this.current);
         this.fire(PlainGallery.Event.CHANGE, this.current);
     }
 
+    /** Make the image adapt to viewport */
     #adaptViewport(delay) {
         if (!this.shadeMask.isOpened) return;
-        const scrRatio = innerWidth / innerHeight;
-        const zoomWrap = this.current;
+        const scrWidth = window.innerWidth;
+        const scrHeight = window.innerHeight;
+        const scrRatio = scrWidth / scrHeight;
+        const { current } = this;
 
-        zoomWrap.scale = zoomWrap.aspectRatio > scrRatio
-            ? innerWidth / zoomWrap.width : innerHeight / zoomWrap.height;
-        zoomWrap.initScale = zoomWrap.scale;
-        zoomWrap.minScale = zoomWrap.scale / 2;
-        zoomWrap.maxScale = zoomWrap.scale * 10;
-        zoomWrap.initX = zoomWrap.transX = innerWidth / 2 - zoomWrap.centerPoint.x;
-        zoomWrap.initY = zoomWrap.transY = innerHeight / 2 - zoomWrap.centerPoint.y;
-
-        const adapt = () => { zoomWrap.translating(); zoomWrap.scaling(); }
-        delay ? setTimeout(adapt) : adapt();
+        // Calculate the adapted size and position
+        current.scale = current.aspectRatio > scrRatio ? scrWidth / current.width : scrHeight / current.height;
+        current.initScale = current.scale;
+        current.minScale = current.scale / PlainGallery.MIN_SCALE;
+        current.maxScale = current.scale * PlainGallery.MAX_SCALE;
+        current.initX = current.transX = scrWidth / 2 - current.centerPoint.x;
+        current.initY = current.transY = scrHeight / 2 - current.centerPoint.y;
+        delay ? setTimeout(current.transform) : current.transform();
     }
 
-    #bindSlideEvents() {
+    /** Click the mask to slide or close */
+    #onShadeMaskClick(e) {
+        const { target } = e;
+        const { current, toolbar } = this;
         const { prevBtn, nextBtn } = this.shadeMask;
-        prevBtn.onclick = nextBtn.onclick = (e) => {
-            e.stopPropagation();
+        console.log(target);
 
-            // Slide the current image out
-            // Stop sliding if thumbnail is null (first or last image)
-            const { direction } = e.currentTarget;
-            const { ordinal, index } = this.current;
-            const thumbnail = this.#getThumbnail(ordinal, index + direction);
-            if (!thumbnail) return;
-            this.#slideImage(direction, true);
-
-            // Slide the next image in
-            this.current = this.#cloneImage(thumbnail);
-            this.#adaptViewport(false);
-            this.#slideImage(-direction, false); // Hide from the screen
-            this.#changeSlideArrows();
-            this.#bindZoomEvents();
-            this.shadeMask.updateImage();
-
-            setTimeout(() => {
-                this.#slideImage(direction, false);
-                this.fire(PlainGallery.Event.CHANGE, this.current);
-            });
+        if (current.contains(target) || toolbar.el.contains(target)) return;
+        if (prevBtn.contains(target) || nextBtn.contains(target)) {
+            this.slide(target.closest('svg').direction);
+        } else {
+            this.close();
         }
     }
 
-    #bindZoomEvents() {
-        const gallery = this;
-        const zoomWrap = this.current;
+    /** Scroll the mouse wheel to zoom */
+    #onZoomWrapWheel(e) {
+        e.preventDefault();
+        const { current } = this;
+        if (!current.contains(e.target)) return;
 
-        // Drag to preview
-        zoomWrap.onpointerdown = function (e) {
+        current.scale = e.wheelDelta > 0 ? current.scale * 1.2 : current.scale / 1.2;
+        if (current.scale > current.maxScale) current.scale = current.maxScale;
+        if (current.scale < current.minScale) current.scale = current.minScale;
+        current.transform();
+
+        this.#checkBoundary();
+    }
+
+    /** Drag to preview the image */
+    #onZoomWrapDrag() {
+        const gallery = this;
+
+        this.current.onpointerdown = function (e) {
             e.preventDefault();
             this.moved = false;
-            this.style.transition = 'unset';
-            this.style.cursor = 'grab';
             this.startX = e.clientX;
             this.startY = e.clientY;
+            this.css('transition:none; cursor:grab');
 
             this.onpointermove = function (e) {
                 this.moved = true;
-                this.style.cursor = 'grabbing';
                 this.offsetX = e.clientX - this.startX;
                 this.offsetY = e.clientY - this.startY;
-                this.translating(this.transX + this.offsetX, this.transY + this.offsetY);
+                this.style.cursor = 'grabbing';
+                this.transform(this.transX + this.offsetX, this.transY + this.offsetY, null);
             }
 
             this.onpointerup = this.onpointerout = function (e) {
@@ -126,97 +137,78 @@ class PlainGallery extends EventTarget {
 
                 // Click to zoom in/out
                 if (e.type == 'pointerup' && !this.moved) {
-                    this.transX = innerWidth - this.centerPoint.x - e.clientX;
-                    this.transY = innerHeight - this.centerPoint.y - e.clientY;
+                    this.transX = window.innerWidth - this.centerPoint.x - e.clientX;
+                    this.transY = window.innerHeight - this.centerPoint.y - e.clientY;
                     this.scale = this.scale <= this.initScale ? this.scale *= 2 : this.initScale;
-                    this.translating();
-                    this.scaling(this.scale);
+                    this.transform(null, null, this.scale);
                 }
 
-                gallery.#switchZoomCursor();
-                gallery.#checkImageBoundary();
+                gallery.#checkBoundary();
             }
         };
-
-        // Scroll to zoom
-        zoomWrap.onwheel = function (e) {
-            e.preventDefault();
-            this.scale = e.wheelDelta > 0 ? this.scale * 1.2 : this.scale / 1.2;
-            if (this.scale > this.maxScale) this.scale = this.maxScale;
-            if (this.scale < this.minScale) this.scale = this.minScale;
-            this.scaling();
-
-            gallery.#switchZoomCursor();
-            gallery.#checkImageBoundary();
-        }
     }
 
+    /** Press esc key to close */
+    #onEscPress(e) {
+        if (e.keyCode === 27) this.close();
+    }
+
+    /** Get thumbnail from data source */
     #getThumbnail(ordinal, index) {
         const thumbnails = this.dataSource[ordinal];
         const max = thumbnails.length - 1;
         return index < 0 || index > max ? null : thumbnails[index];
     }
 
-    #slideImage(direction, removeEl) {
-        const zoomWrap = this.current;
-        direction > 0 ? zoomWrap.transX -= innerWidth : zoomWrap.transX += innerWidth;
-        zoomWrap.scale = zoomWrap.initScale;
-        zoomWrap.translating();
-        zoomWrap.scaling();
-
-        if (removeEl) {
-            zoomWrap.ontransitionend = () => zoomWrap.remove();
-        }
-    }
-
-    #changeSlideArrows() {
+    /** Toggle visibility of the slide arrows */
+    #toggleSlideArrows() {
+        const { prevBtn, nextBtn } = this.shadeMask;
         const { ordinal, index } = this.current;
         const max = this.dataSource[ordinal].length - 1;
-        const { prevBtn, nextBtn } = this.shadeMask;
         prevBtn.style.visibility = index == 0 ? 'hidden' : 'visible';
         nextBtn.style.visibility = index == max ? 'hidden' : 'visible';
     }
 
-    #switchZoomCursor() {
-        const zoomWrap = this.current;
-        zoomWrap.style.cursor = zoomWrap.scale <= zoomWrap.initScale ? 'zoom-in' : 'zoom-out';
-    }
+    /** Check zoom and drag boundaries */
+    #checkBoundary() {
+        const { current } = this;
+        // Toggle zoom style of the cursor
+        current.style.cursor = current.scale <= current.initScale ? 'zoom-in' : 'zoom-out';
 
-    #checkImageBoundary() {
-        const zoomWrap = this.current;
-        const width = zoomWrap.width * zoomWrap.scale;
-        const height = zoomWrap.height * zoomWrap.scale;
+        const width = current.width * current.scale;
+        const height = current.height * current.scale;
         const bound = {
-            x1: zoomWrap.initX, x2: zoomWrap.initX,
-            y1: zoomWrap.initY, y2: zoomWrap.initY
+            x1: current.initX, x2: current.initX,
+            y1: current.initY, y2: current.initY
         }
         if (width > innerWidth) {
-            bound.x1 = width / 2 - zoomWrap.centerPoint.x;
+            bound.x1 = width / 2 - current.centerPoint.x;
             bound.x2 = bound.x1 - (width - innerWidth);
         }
         if (height > innerHeight) {
-            bound.y1 = height / 2 - zoomWrap.centerPoint.y;
+            bound.y1 = height / 2 - current.centerPoint.y;
             bound.y2 = bound.y1 - (height - innerHeight);
         }
-        if (zoomWrap.transX > bound.x1) {
-            zoomWrap.transX = bound.x1;
-            zoomWrap.translating();
+        if (current.transX > bound.x1) {
+            current.transX = bound.x1;
+            current.transform();
         }
-        if (zoomWrap.transX < bound.x2) {
-            zoomWrap.transX = bound.x2;
-            zoomWrap.translating();
+        if (current.transX < bound.x2) {
+            current.transX = bound.x2;
+            current.transform();
         }
-        if (zoomWrap.transY > bound.y1) {
-            zoomWrap.transY = bound.y1;
-            zoomWrap.translating();
+        if (current.transY > bound.y1) {
+            current.transY = bound.y1;
+            current.transform();
         }
-        if (zoomWrap.transY < bound.y2) {
-            zoomWrap.transY = bound.y2;
-            zoomWrap.translating();
+        if (current.transY < bound.y2) {
+            current.transY = bound.y2;
+            current.transform();
         }
     }
 
-    #cloneImage(source) {
+    /** Create the zoom wrap for image */
+    #createZoomWrap(source) {
         const { ordinal, index } = source;
         const rect = source.getBoundingClientRect();
         const placeholder = source.cloneNode(true);
@@ -224,17 +216,16 @@ class PlainGallery extends EventTarget {
 
         const original = source.cloneNode(true);
         original.className = 'plga-image-placeholder'
-        original.src = source.originalUrl+'?'+Math.random();
+        if (source.originalUrl) {
+            original.src = source.originalUrl+'?'+Math.random();
+        }
 
         const zoomWrap = createElement('<div class="plga-zoom-wrap"></div>');
-        zoomWrap.style.left = rect.left + 'px';
-        zoomWrap.style.top = rect.top + 'px';
-        zoomWrap.style.width = rect.width + 'px';
-        zoomWrap.style.height = rect.height + 'px';
         zoomWrap.width = rect.width;
         zoomWrap.height = rect.height;
         zoomWrap.ordinal = ordinal;
         zoomWrap.index = index;
+        zoomWrap.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`)
         zoomWrap.append(placeholder);
         zoomWrap.append(original);
         this.shadeMask.el.append(zoomWrap);
@@ -244,36 +235,71 @@ class PlainGallery extends EventTarget {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
         }
-
-        zoomWrap.translating = (x, y) => {
+        zoomWrap.transform = (x, y, s) => {
             zoomWrap.style.setProperty('--transX', (x ?? zoomWrap.transX) + 'px');
             zoomWrap.style.setProperty('--transY', (y ?? zoomWrap.transY) + 'px');
-        }
-        zoomWrap.scaling = (scale) => {
-            zoomWrap.style.setProperty('--scale', scale ?? zoomWrap.scale);
+            zoomWrap.style.setProperty('--scale', s ?? zoomWrap.scale);
         }
         zoomWrap.restore = () => {
-            zoomWrap.translating(0, 0);
-            zoomWrap.scaling(1);
+            zoomWrap.transform(0, 0, 1);
             zoomWrap.ontransitionend = () => zoomWrap.remove();
         }
         return zoomWrap;
     }
 
+    /** Open gallery with the specified index */
     open(ordinal, index) {
         const source = this.#getThumbnail(ordinal ?? 0, index ?? 0);
         this.#openViewport(source);
     }
 
-    close() {
-        this.shadeMask.fadeOut();
-        this.fire(PlainGallery.Event.CLOSE, this.current);
+    /** Slide gallery according to the direction */
+    slide(direction) {
+        // Slide the current image out
+        // Stop sliding if thumbnail is null (first or last image)
+        const { ordinal, index } = this.current;
+        const thumbnail = this.#getThumbnail(ordinal, index + direction);
+        if (!thumbnail) return;
+
+        const slideImage = (direction, removeEl) => {
+            const { current } = this;
+            const scrWidth = window.innerWidth;
+            direction > 0 ? current.transX -= scrWidth : current.transX += scrWidth;
+            current.scale = current.initScale;
+            current.transform();
+
+            if (removeEl) {
+                current.ontransitionend = () => current.remove();
+            }
+        }
+        slideImage(direction, true);
+
+        // Slide the next image in
+        this.current = this.#createZoomWrap(thumbnail);
+        this.#adaptViewport(false);
+        slideImage(-direction, false); // Hide from the screen
+        this.#toggleSlideArrows();
+
+        setTimeout(() => {
+            slideImage(direction, false);
+            this.fire(PlainGallery.Event.CHANGE, this.current);
+        });
     }
 
+    /** Close gallery */
+    close() {
+        if (this.shadeMask.isOpened) {
+            this.shadeMask.fadeOut();
+            this.fire(PlainGallery.Event.CLOSE, this.current);
+        }
+    }
+
+    /** Listening for custom event */
     on(type, callback) {
         this.addEventListener(type, e => callback(e.detail));
     }
 
+    /** Dispatch custom event */
     fire(type, detail) {
         this.dispatchEvent(new CustomEvent(type, { detail }));
     }
@@ -304,6 +330,7 @@ class Toolbar {
                 });
             }
         });
+
         // Register default widget: close button
         this.register({
             position: 'right',
@@ -348,32 +375,21 @@ class ShadeMask {
         this.nextBtn = this.el.querySelector('.plga-icon-next');
         this.prevBtn.direction = -1;
         this.nextBtn.direction = 1;
-
-        this.el.addEventListener('click', this.fadeOut.bind(this));
-        window.addEventListener('keyup', this.fadeOut.bind(this));
         document.body.append(this.el);
     }
 
     fadeIn() {
-        this.updateImage();
         this.el.ontransitionend = null;
         this.el.style.display = 'flex';
         setTimeout(() => this.el.style.background = 'rgba(0, 0, 0, .8)');
         this.isOpened = true;
     }
 
-    fadeOut(e) {
-        const { current, toolbar } = this.gallery;
-        if (e && e.keyCode && e.keyCode !== 27) return;
-        if (e && (current.contains(e.target) || toolbar.el.contains(e.target))) return;
+    fadeOut() {
         this.el.style.background = 'rgba(0, 0, 0, 0)';
         this.el.ontransitionend = () => this.el.style.display = 'none';
         this.gallery.current.restore();
         this.isOpened = false;
-    }
-
-    updateImage() {
-        this.el.append(this.gallery.current);
     }
 
     embedStyles() {
@@ -426,6 +442,7 @@ class ShadeMask {
                 cursor: zoom-in;
                 transform: translate(var(--transX), var(--transY)) scale(var(--scale));
                 transition: all .3s;
+                will-change: transform;
             }
             .plga-image-placeholder {
                 position: absolute;
@@ -438,9 +455,9 @@ class ShadeMask {
 }
 
 Object.assign(Element.prototype, {
-    css: (text) => {
+    css(text) {
         let cssText = this.style.cssText;
-        const l = ct.length - 1;
+        const l = cssText.length - 1;
         if (l >= 0 && cssText.indexOf(';', l) == l) cssText += ';';
         this.style.cssText = cssText + text;
     }
