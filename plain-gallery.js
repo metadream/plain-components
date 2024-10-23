@@ -437,6 +437,15 @@ class ShadeMask {
 
 }
 
+Object.assign(Element.prototype, {
+    css: (text) => {
+        let cssText = this.style.cssText;
+        const l = ct.length - 1;
+        if (l >= 0 && cssText.indexOf(';', l) == l) cssText += ';';
+        this.style.cssText = cssText + text;
+    }
+});
+
 function createElement(content) {
     if (!content) return;
     content = content.replace(/[\t\r\n]/mg, '').trim();
@@ -444,7 +453,7 @@ function createElement(content) {
     if (content.indexOf('<') === 0) {
         const template = document.createElement('template');
         template.innerHTML = content;
-        return template.content.firstElementChild.cloneNode(true);
+        return template.content.firstElementChild;
     }
     return document.createElement(content);
 }
