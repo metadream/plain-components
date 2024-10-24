@@ -1,9 +1,13 @@
-<style>
-  img {
-    opacity: 1
-  }
-</style>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
+  <script src="plain-gallery.js"></script>
+  <style> img { opacity: 1 } </style>
+</head>
 
+<body>
 <main>
   <a href="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b">
     <img src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=320">
@@ -31,9 +35,12 @@
   </a>
 </main>
 
-<button onclick="pg.open(1,1)">open</button>
+<div style="width:1000px;height:10px;"></div>
 
-<script src="plain-gallery.js"></script>
+<button onclick="pg.open(1,1)">open</button>
+</body>
+</html>
+
 <script>
 const pg = new PlainGallery('main', 'a');
 

@@ -1,45 +1,70 @@
-/** Core Class */
+/**
+ * Plain Gallery
+ * Lightweight and independent javascript image gallery component.
+ *
+ * @Copyright (c) 2024 Ai Chen
+ * @Repository https://github.com/metadream/plain-gallery
+ * @License MIT
+ */
 class PlainGallery extends EventTarget {
 
-    static MIN_SCALE = 2;
-    static MAX_SCALE = 10;
-    static Event = {
-        OPEN: 'open',
-        CHANGE: 'change',
-        CLOSE: 'close',
+    // Constants
+    static Zoom = { MIN_SCALE: 2, MAX_SCALE: 10, STEP: 1.2 };
+    static Event = { OPEN: 'open', CHANGE: 'change', CLOSE: 'close', IMAGE_LOADED: 'imageLoaded'};
+
+    // Utils
+    static createElement(content) {
+        if (!content) return;
+        content = content.replace(/[\t\r\n]/mg, '').trim();
+
+        if (content.indexOf('<') === 0) {
+            const template = document.createElement('template');
+            template.innerHTML = content;
+            return template.content.firstElementChild;
+        }
+        return document.createElement(content);
     }
 
+    // Properties
     current = null;
+    isOpened = false;
     dataSource = [];
-    shadeMask = new ShadeMask(this);
-    toolbar = new Toolbar(this);
+    shadeMask = new PlainGallery.ShadeMask(this);
+    toolbar = new PlainGallery.Toolbar(this);
 
-    /** Initialization Component */
-    constructor(gallery, children) {
+    // Viewport size without scroll bars
+    viewport = {
+        width: document.documentElement.clientWidth,
+        height: document.documentElement.clientHeight
+    }
+
+    /** Overall initialization */
+    constructor(groupSelector, itemSelector) {
         super();
+
         // Bind global window events
-        window.addEventListener('resize', this.#adaptViewport.bind(this));
+        window.addEventListener('resize', this.#onViewportResize.bind(this));
         window.addEventListener('keyup', this.#onEscPress.bind(this));
 
         // Delegate gallery events
         const { el } = this.shadeMask;
         el.addEventListener('click', this.#onShadeMaskClick.bind(this));
-        el.addEventListener('wheel', this.#onZoomWrapWheel.bind(this));
-        el.addEventListener('pointerdown', this.#onZoomWrapDrag.bind(this));
+        el.addEventListener('wheel', this.#onPreviewZoneWheel.bind(this));
+        el.addEventListener('pointerdown', this.#onPreviewZoneDrag.bind(this));
 
-        // Traverse all thumbnail items
-        let ordinal = -1; // Also refers to group index
-        for (const group of document.querySelectorAll(gallery)) {
-            const thumbnails = [];
-            this.dataSource.push(thumbnails);
+        // Traverse all items in groups
+        let ordinal = -1; // Namely group index
+        for (const group of document.querySelectorAll(groupSelector)) {
+            const items = [];
+            this.dataSource.push(items);
             ordinal++;
 
             let index = 0;
-            for (const item of group.querySelectorAll(children)) {
+            for (const item of group.querySelectorAll(itemSelector)) {
                 const thumbnail = item.querySelector('img');
                 if (!thumbnail) continue;
 
-                thumbnails.push(thumbnail);
+                items.push({ thumbnail });
                 thumbnail.originalUrl = item.getAttribute('href');
                 thumbnail.ordinal = ordinal;
                 thumbnail.index = index++;
@@ -51,33 +76,32 @@ class PlainGallery extends EventTarget {
         }
     }
 
-    /** Open gallery viewport */
+    /** Open gallery viewport based on thumbnail element */
     #openViewport(source) {
-        this.current = this.#createZoomWrap(source);
+        this.current = this.#createPreviewZone(source);
         this.shadeMask.fadeIn();
         this.#toggleSlideArrows();
         this.#adaptViewport(true);
+        this.isOpened = true;
 
         // Dispatch custom events
-        this.fire(PlainGallery.Event.OPEN, this.current);
-        this.fire(PlainGallery.Event.CHANGE, this.current);
+        this.fire(PlainGallery.Event.OPEN, this);
+        this.fire(PlainGallery.Event.CHANGE, this);
     }
 
     /** Make the image adapt to viewport */
     #adaptViewport(delay) {
-        if (!this.shadeMask.isOpened) return;
-        const scrWidth = window.innerWidth;
-        const scrHeight = window.innerHeight;
-        const scrRatio = scrWidth / scrHeight;
         const { current } = this;
+        const { width, height } = this.viewport;
+        const viewportRatio = width / height;
 
         // Calculate the adapted size and position
-        current.scale = current.aspectRatio > scrRatio ? scrWidth / current.width : scrHeight / current.height;
+        current.scale = current.aspectRatio > viewportRatio ? width / current.width : height / current.height;
         current.initScale = current.scale;
-        current.minScale = current.scale / PlainGallery.MIN_SCALE;
-        current.maxScale = current.scale * PlainGallery.MAX_SCALE;
-        current.initX = current.transX = scrWidth / 2 - current.centerPoint.x;
-        current.initY = current.transY = scrHeight / 2 - current.centerPoint.y;
+        current.minScale = current.scale / PlainGallery.Zoom.MIN_SCALE;
+        current.maxScale = current.scale * PlainGallery.Zoom.MAX_SCALE;
+        current.initX = current.transX = width / 2 - current.centerPoint.x;
+        current.initY = current.transY = height / 2 - current.centerPoint.y;
         delay ? setTimeout(current.transform) : current.transform();
     }
 
@@ -86,7 +110,6 @@ class PlainGallery extends EventTarget {
         const { target } = e;
         const { current, toolbar } = this;
         const { prevBtn, nextBtn } = this.shadeMask;
-        console.log(target);
 
         if (current.contains(target) || toolbar.el.contains(target)) return;
         if (prevBtn.contains(target) || nextBtn.contains(target)) {
@@ -97,67 +120,70 @@ class PlainGallery extends EventTarget {
     }
 
     /** Scroll the mouse wheel to zoom */
-    #onZoomWrapWheel(e) {
+    #onPreviewZoneWheel(e) {
         e.preventDefault();
         const { current } = this;
         if (!current.contains(e.target)) return;
 
-        current.scale = e.wheelDelta > 0 ? current.scale * 1.2 : current.scale / 1.2;
+        if (e.wheelDelta > 0) current.scale *= PlainGallery.Zoom.STEP
+        else current.scale /= PlainGallery.Zoom.STEP;
         if (current.scale > current.maxScale) current.scale = current.maxScale;
         if (current.scale < current.minScale) current.scale = current.minScale;
-        current.transform();
 
+        current.transform();
         this.#checkBoundary();
     }
 
     /** Drag to preview the image */
-    #onZoomWrapDrag() {
+    #onPreviewZoneDrag(e) {
+        e.preventDefault();
         const gallery = this;
+        const { current } = this;
+        if (!current.contains(e.target)) return;
 
-        this.current.onpointerdown = function (e) {
-            e.preventDefault();
-            this.moved = false;
-            this.startX = e.clientX;
-            this.startY = e.clientY;
-            this.css('transition:none; cursor:grab');
+        current.isMoved = false;
+        current.startX = e.clientX;
+        current.startY = e.clientY;
+        current.css('transition:none; cursor:grab');
 
-            this.onpointermove = function (e) {
-                this.moved = true;
-                this.offsetX = e.clientX - this.startX;
-                this.offsetY = e.clientY - this.startY;
-                this.style.cursor = 'grabbing';
-                this.transform(this.transX + this.offsetX, this.transY + this.offsetY, null);
+        current.onpointermove = function (e) {
+            this.isMoved = true;
+            this.offsetX = e.clientX - this.startX;
+            this.offsetY = e.clientY - this.startY;
+            this.style.cursor = 'grabbing';
+            this.transform(this.transX + this.offsetX, this.transY + this.offsetY, null);
+        }
+
+        current.onpointerup = current.onpointerout = function (e) {
+            this.transX += this.offsetX ?? 0;
+            this.transY += this.offsetY ?? 0;
+            this.style.transition = 'all .3s';
+            this.onpointermove = null;
+
+            // Click to zoom in/out
+            if (e.type == 'pointerup' && !this.isMoved) {
+                const { width, height } = gallery.viewport;
+                this.transX = width - this.centerPoint.x - e.clientX;
+                this.transY = height - this.centerPoint.y - e.clientY;
+                this.scale = this.scale <= this.initScale ? this.scale *= 2 : this.initScale;
+                this.transform();
             }
+            gallery.#checkBoundary();
+        }
+    }
 
-            this.onpointerup = this.onpointerout = function (e) {
-                this.transX += this.offsetX ?? 0;
-                this.transY += this.offsetY ?? 0;
-                this.onpointermove = null;
-                this.style.transition = 'all .3s';
-
-                // Click to zoom in/out
-                if (e.type == 'pointerup' && !this.moved) {
-                    this.transX = window.innerWidth - this.centerPoint.x - e.clientX;
-                    this.transY = window.innerHeight - this.centerPoint.y - e.clientY;
-                    this.scale = this.scale <= this.initScale ? this.scale *= 2 : this.initScale;
-                    this.transform(null, null, this.scale);
-                }
-
-                gallery.#checkBoundary();
-            }
-        };
+    /** The viewport size changed */
+    #onViewportResize() {
+        if (this.isOpened) {
+            this.viewport.width = document.documentElement.clientWidth;
+            this.viewport.height = document.documentElement.clientHeight;
+            this.#adaptViewport();
+        }
     }
 
     /** Press esc key to close */
     #onEscPress(e) {
-        if (e.keyCode === 27) this.close();
-    }
-
-    /** Get thumbnail from data source */
-    #getThumbnail(ordinal, index) {
-        const thumbnails = this.dataSource[ordinal];
-        const max = thumbnails.length - 1;
-        return index < 0 || index > max ? null : thumbnails[index];
+        if (this.isOpened && e.keyCode === 27) this.close();
     }
 
     /** Toggle visibility of the slide arrows */
@@ -181,70 +207,99 @@ class PlainGallery extends EventTarget {
             x1: current.initX, x2: current.initX,
             y1: current.initY, y2: current.initY
         }
-        if (width > innerWidth) {
+        if (width > this.viewport.width) {
             bound.x1 = width / 2 - current.centerPoint.x;
-            bound.x2 = bound.x1 - (width - innerWidth);
+            bound.x2 = bound.x1 - (width - this.viewport.width);
         }
-        if (height > innerHeight) {
+        if (height > this.viewport.height) {
             bound.y1 = height / 2 - current.centerPoint.y;
-            bound.y2 = bound.y1 - (height - innerHeight);
+            bound.y2 = bound.y1 - (height - this.viewport.height);
         }
+        let beyond = false;
         if (current.transX > bound.x1) {
             current.transX = bound.x1;
-            current.transform();
+            beyond = true;
         }
         if (current.transX < bound.x2) {
             current.transX = bound.x2;
-            current.transform();
+            beyond = true;
         }
         if (current.transY > bound.y1) {
             current.transY = bound.y1;
-            current.transform();
+            beyond = true;
         }
         if (current.transY < bound.y2) {
             current.transY = bound.y2;
+            beyond = true;
+        }
+        if (beyond) {
             current.transform();
         }
     }
 
-    /** Create the zoom wrap for image */
-    #createZoomWrap(source) {
-        const { ordinal, index } = source;
-        const rect = source.getBoundingClientRect();
-        const placeholder = source.cloneNode(true);
-        placeholder.className = 'plga-image-placeholder'
+    /** Get thumbnail from data source */
+    #getThumbnail(ordinal, index) {
+        const items = this.dataSource[ordinal];
+        const max = items.length - 1;
+        return index < 0 || index > max ? null : items[index].thumbnail;
+    }
 
-        const original = source.cloneNode(true);
-        original.className = 'plga-image-placeholder'
-        if (source.originalUrl) {
-            original.src = source.originalUrl+'?'+Math.random();
+    /** Create the preview zone for image */
+    #createPreviewZone(source) {
+        const { ordinal, index } = source;
+        const item = this.dataSource[ordinal][index];
+
+        // Cache the placeholder and original clones to data source
+        if (!item.placeholder) {
+            item.placeholder = source.cloneNode(true);
+            item.placeholder.className = 'plga-image-placeholder';
+        }
+        if (!item.original && source.originalUrl) {
+            item.original = source.cloneNode(true);
+            item.original.className = 'plga-image-placeholder';
+            item.original.src = source.originalUrl +'?'+ Math.random();
+            item.original.onload = function() {
+                this.loaded = true;
+            }
         }
 
-        const zoomWrap = createElement('<div class="plga-zoom-wrap"></div>');
-        zoomWrap.width = rect.width;
-        zoomWrap.height = rect.height;
-        zoomWrap.ordinal = ordinal;
-        zoomWrap.index = index;
-        zoomWrap.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`)
-        zoomWrap.append(placeholder);
-        zoomWrap.append(original);
-        this.shadeMask.el.append(zoomWrap);
-
-        zoomWrap.aspectRatio = rect.width / rect.height;
-        zoomWrap.centerPoint = {
+        // Additional attributes
+        const rect = source.getBoundingClientRect();
+        const zone = PlainGallery.createElement('<div class="plga-preview-zone"></div>');
+        zone.ordinal = ordinal;
+        zone.index = index;
+        zone.width = rect.width;
+        zone.height = rect.height;
+        zone.aspectRatio = rect.width / rect.height;
+        zone.centerPoint = {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
         }
-        zoomWrap.transform = (x, y, s) => {
-            zoomWrap.style.setProperty('--transX', (x ?? zoomWrap.transX) + 'px');
-            zoomWrap.style.setProperty('--transY', (y ?? zoomWrap.transY) + 'px');
-            zoomWrap.style.setProperty('--scale', s ?? zoomWrap.scale);
+
+        // Additional methods
+        zone.css = (text) => {
+            let cssText = zone.style.cssText;
+            const l = cssText.length - 1;
+            if (l >= 0 && cssText.indexOf(';', l) == l) cssText += ';';
+            zone.style.cssText = cssText + text;
         }
-        zoomWrap.restore = () => {
-            zoomWrap.transform(0, 0, 1);
-            zoomWrap.ontransitionend = () => zoomWrap.remove();
+        zone.transform = (x, y, s) => {
+            zone.css(`
+                --transX: ${x ?? zone.transX}px;
+                --transY: ${y ?? zone.transY}px;
+                --scale: ${s ?? zone.scale}
+            `);
         }
-        return zoomWrap;
+        zone.restore = () => {
+            zone.transform(0, 0, 1);
+            zone.ontransitionend = () => zone.remove();
+        }
+
+        if (!item.loaded) zone.append(item.placeholder);
+        if (item.original) zone.append(item.original);
+        zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`)
+        this.shadeMask.el.append(zone);
+        return zone;
     }
 
     /** Open gallery with the specified index */
@@ -255,16 +310,16 @@ class PlainGallery extends EventTarget {
 
     /** Slide gallery according to the direction */
     slide(direction) {
-        // Slide the current image out
         // Stop sliding if thumbnail is null (first or last image)
         const { ordinal, index } = this.current;
         const thumbnail = this.#getThumbnail(ordinal, index + direction);
         if (!thumbnail) return;
 
+        // Slide the current image out
         const slideImage = (direction, removeEl) => {
             const { current } = this;
-            const scrWidth = window.innerWidth;
-            direction > 0 ? current.transX -= scrWidth : current.transX += scrWidth;
+            const { width } = this.viewport;
+            direction > 0 ? current.transX -= width : current.transX += width;
             current.scale = current.initScale;
             current.transform();
 
@@ -274,23 +329,27 @@ class PlainGallery extends EventTarget {
         }
         slideImage(direction, true);
 
-        // Slide the next image in
-        this.current = this.#createZoomWrap(thumbnail);
+        // Slide the prev/next image in
+        this.current = this.#createPreviewZone(thumbnail);
+        this.current.style.display = 'none'; // Reduce reflow and repaint
+        this.#toggleSlideArrows();
         this.#adaptViewport(false);
         slideImage(-direction, false); // Hide from the screen
-        this.#toggleSlideArrows();
+        this.current.style.display = 'block';
 
         setTimeout(() => {
             slideImage(direction, false);
-            this.fire(PlainGallery.Event.CHANGE, this.current);
+            this.fire(PlainGallery.Event.CHANGE, this);
         });
     }
 
     /** Close gallery */
     close() {
-        if (this.shadeMask.isOpened) {
+        if (this.isOpened) {
             this.shadeMask.fadeOut();
-            this.fire(PlainGallery.Event.CLOSE, this.current);
+            this.current.restore();
+            this.fire(PlainGallery.Event.CLOSE, this);
+            this.isOpened = false;
         }
     }
 
@@ -306,24 +365,25 @@ class PlainGallery extends EventTarget {
 
 }
 
-/** Toolbar Component */
-class Toolbar {
+/** Toolbar Module */
+PlainGallery.Toolbar = class {
 
     gallery = null;
-    el = createElement(`<div class="plga-toolbar">
+    el = PlainGallery.createElement(`<div class="plga-toolbar">
         <div class="plga-toolbar-left"></div>
         <div class="plga-toolbar-right"></div>
     </div>`);
 
     constructor(gallery) {
         this.gallery = gallery;
-        gallery.shadeMask.el.append(this.el);
+        this.left = this.el.querySelector('.plga-toolbar-left');
+        this.right = this.el.querySelector('.plga-toolbar-right');
 
         // Register default widget: counter
         this.register({
             html: '<div class="plga-counter"></div>',
             onInit: (el) => {
-                gallery.on(PlainGallery.Event.CHANGE, (current) => {
+                gallery.on(PlainGallery.Event.CHANGE, () => {
                     const { ordinal, index } = gallery.current;
                     const total = gallery.dataSource[ordinal].length;
                     el.innerHTML = (index+1) + '/' + total;
@@ -339,17 +399,19 @@ class Toolbar {
                 el.onclick = () => gallery.close();
             }
         });
+
+        // Append toolbar to shade mask
+        gallery.shadeMask.el.append(this.el);
     }
 
     register(options) {
         const { position, html, onInit } = options;
-        const widget = createElement(html);
+        const { left, right } = this;
+        const widget = PlainGallery.createElement(html);
 
         if (position == 'right') {
-            const right = this.el.querySelector('.plga-toolbar-right');
             right.insertBefore(widget, right.firstChild);
         } else {
-            const left = this.el.querySelector('.plga-toolbar-left');
             left.append(widget);
         }
         options.onInit(widget, this.gallery);
@@ -357,19 +419,18 @@ class Toolbar {
 
 }
 
-/** Shade Mask Component */
-class ShadeMask {
+/** Shade Mask Module */
+PlainGallery.ShadeMask = class {
 
     gallery = null;
-    isOpened = false;
-    el = createElement(`<div class="plga-shade-mask">
+    el = PlainGallery.createElement(`<div class="plga-shade-mask">
         <svg class="plga-icon plga-icon-prev" viewBox="0 0 60 60" width="48"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
         <svg class="plga-icon plga-icon-next" viewBox="0 0 60 60" width="48" transform="rotate(180)"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
     </div>`);
 
     constructor(gallery) {
         this.gallery = gallery;
-        this.embedStyles();
+        this.#embedStyles();
 
         this.prevBtn = this.el.querySelector('.plga-icon-prev');
         this.nextBtn = this.el.querySelector('.plga-icon-next');
@@ -379,21 +440,20 @@ class ShadeMask {
     }
 
     fadeIn() {
-        this.el.ontransitionend = null;
-        this.el.style.display = 'flex';
-        setTimeout(() => this.el.style.background = 'rgba(0, 0, 0, .8)');
-        this.isOpened = true;
+        const { el } = this;
+        el.ontransitionend = null;
+        el.style.display = 'flex';
+        setTimeout(() => el.style.background = 'rgba(0, 0, 0, .8)');
     }
 
     fadeOut() {
-        this.el.style.background = 'rgba(0, 0, 0, 0)';
-        this.el.ontransitionend = () => this.el.style.display = 'none';
-        this.gallery.current.restore();
-        this.isOpened = false;
+        const { el } = this;
+        el.style.background = 'rgba(0, 0, 0, 0)';
+        el.ontransitionend = () => el.style.display = 'none';
     }
 
-    embedStyles() {
-        document.head.append(createElement(`<style>
+    #embedStyles() {
+        document.head.append(PlainGallery.createElement(`<style>
             .plga-shade-mask {
                 user-select: none;
                 display: none;
@@ -437,7 +497,7 @@ class ShadeMask {
                 align-items: center;
                 gap: 15px;
             }
-            .plga-zoom-wrap {
+            .plga-preview-zone {
                 position: absolute;
                 cursor: zoom-in;
                 transform: translate(var(--transX), var(--transY)) scale(var(--scale));
@@ -452,25 +512,4 @@ class ShadeMask {
         </style>`.replace(/\s+/g, ' ')));
     }
 
-}
-
-Object.assign(Element.prototype, {
-    css(text) {
-        let cssText = this.style.cssText;
-        const l = cssText.length - 1;
-        if (l >= 0 && cssText.indexOf(';', l) == l) cssText += ';';
-        this.style.cssText = cssText + text;
-    }
-});
-
-function createElement(content) {
-    if (!content) return;
-    content = content.replace(/[\t\r\n]/mg, '').trim();
-
-    if (content.indexOf('<') === 0) {
-        const template = document.createElement('template');
-        template.innerHTML = content;
-        return template.content.firstElementChild;
-    }
-    return document.createElement(content);
 }
