@@ -32,7 +32,7 @@ class PlainGallery extends EventTarget {
     shadeMask = new PlainGallery.ShadeMask(this);
     toolbar = new PlainGallery.Toolbar(this);
 
-    // Viewport size without scroll bars
+    // Viewport size minus scrollbars
     viewport = {
         width: document.documentElement.clientWidth,
         height: document.documentElement.clientHeight
@@ -92,11 +92,12 @@ class PlainGallery extends EventTarget {
     /** Make the image adapt to viewport */
     #adaptViewport(delay) {
         const { current } = this;
+        const { rect } = current;
         const { width, height } = this.viewport;
         const viewportRatio = width / height;
 
         // Calculate the adapted size and position
-        current.scale = current.aspectRatio > viewportRatio ? width / current.width : height / current.height;
+        current.scale = current.aspectRatio > viewportRatio ? width / rect.width : height / rect.height;
         current.initScale = current.scale;
         current.minScale = current.scale / PlainGallery.Zoom.MIN_SCALE;
         current.maxScale = current.scale * PlainGallery.Zoom.MAX_SCALE;
@@ -178,6 +179,11 @@ class PlainGallery extends EventTarget {
             this.viewport.width = document.documentElement.clientWidth;
             this.viewport.height = document.documentElement.clientHeight;
             this.#adaptViewport();
+
+            // Update thumbnail size and position to restore
+            const { current } = this;
+            const { ordinal, index } = current;
+            current.rect = this.#getThumbnail(ordinal, index).getBoundingClientRect();
         }
     }
 
@@ -198,11 +204,12 @@ class PlainGallery extends EventTarget {
     /** Check zoom and drag boundaries */
     #checkBoundary() {
         const { current } = this;
+        const { rect } = current;
         // Toggle zoom style of the cursor
         current.style.cursor = current.scale <= current.initScale ? 'zoom-in' : 'zoom-out';
 
-        const width = current.width * current.scale;
-        const height = current.height * current.scale;
+        const width = rect.width * current.scale;
+        const height = rect.height * current.scale;
         const bound = {
             x1: current.initX, x2: current.initX,
             y1: current.initY, y2: current.initY
@@ -246,30 +253,13 @@ class PlainGallery extends EventTarget {
 
     /** Create the preview zone for image */
     #createPreviewZone(source) {
-        const { ordinal, index } = source;
-        const item = this.dataSource[ordinal][index];
-
-        // Cache the placeholder and original clones to data source
-        if (!item.placeholder) {
-            item.placeholder = source.cloneNode(true);
-            item.placeholder.className = 'plga-image-placeholder';
-        }
-        if (!item.original && source.originalUrl) {
-            item.original = source.cloneNode(true);
-            item.original.className = 'plga-image-placeholder';
-            item.original.src = source.originalUrl;
-            item.original.onload = function() {
-                item.loaded = true;
-            }
-        }
-
         // Additional attributes
+        const { ordinal, index } = source;
         const rect = source.getBoundingClientRect();
         const zone = PlainGallery.createElement('<div class="plga-preview-zone"></div>');
         zone.ordinal = ordinal;
         zone.index = index;
-        zone.width = rect.width;
-        zone.height = rect.height;
+        zone.rect = rect;
         zone.aspectRatio = rect.width / rect.height;
         zone.centerPoint = {
             x: rect.left + rect.width / 2,
@@ -291,13 +281,31 @@ class PlainGallery extends EventTarget {
             `);
         }
         zone.restore = () => {
+            const { rect } = zone;
+            zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`);
             zone.transform(0, 0, 1);
             zone.ontransitionend = () => zone.remove();
         }
 
+        // Cache the placeholder and original clones to data source
+        const item = this.dataSource[ordinal][index];
+        if (!item.placeholder) {
+            item.placeholder = source.cloneNode(true);
+            item.placeholder.className = 'plga-image-placeholder';
+        }
+        if (!item.original && source.originalUrl) {
+            item.original = source.cloneNode(true);
+            item.original.className = 'plga-image-placeholder';
+            // Set src directly will cause animation to freeze
+            zone.ontransitionend = () => {
+                item.original.src = source.originalUrl;
+                item.original.onload = () => item.loaded = true;
+            }
+        }
+
         if (!item.loaded) zone.append(item.placeholder);
         if (item.original) zone.append(item.original);
-        zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`)
+        zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`);
         this.shadeMask.el.append(zone);
         return zone;
     }
