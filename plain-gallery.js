@@ -11,6 +11,7 @@ class PlainGallery extends EventTarget {
     // Constants
     static Zoom = { MIN_SCALE: 2, MAX_SCALE: 10, STEP: 1.2 };
     static Event = { OPEN: 'open', CHANGE: 'change', CLOSE: 'close', IMAGE_LOADED: 'imageLoaded'};
+    static State = { OPENING: 1, OPENED: 2, CLOSING: 3, CLOSED: 4 };
 
     // Utils
     static createElement(content) {
@@ -27,8 +28,8 @@ class PlainGallery extends EventTarget {
 
     // Properties
     current = null;
-    isOpened = false;
     dataSource = [];
+    state = PlainGallery.State.CLOSED;
     shadeMask = new PlainGallery.ShadeMask(this);
     toolbar = new PlainGallery.Toolbar(this);
 
@@ -82,11 +83,7 @@ class PlainGallery extends EventTarget {
         this.shadeMask.fadeIn();
         this.#toggleSlideArrows();
         this.#adaptViewport(true);
-        this.isOpened = true;
-
-        // Dispatch custom events
-        this.fire(PlainGallery.Event.OPEN, this);
-        this.fire(PlainGallery.Event.CHANGE, this);
+        this.state = PlainGallery.State.OPENING;
     }
 
     /** Make the image adapt to viewport */
@@ -158,7 +155,7 @@ class PlainGallery extends EventTarget {
         current.onpointerup = current.onpointerout = function (e) {
             this.transX += this.offsetX ?? 0;
             this.transY += this.offsetY ?? 0;
-            this.style.transition = 'all .3s';
+            this.style.transition = 'all 10.3s';
             this.onpointermove = null;
 
             // Click to zoom in/out
@@ -175,7 +172,7 @@ class PlainGallery extends EventTarget {
 
     /** The viewport size changed */
     #onViewportResize() {
-        if (this.isOpened) {
+        if (this.state === PlainGallery.State.OPENED) {
             this.viewport.width = document.documentElement.clientWidth;
             this.viewport.height = document.documentElement.clientHeight;
             this.#adaptViewport();
@@ -189,7 +186,7 @@ class PlainGallery extends EventTarget {
 
     /** Press esc key to close */
     #onEscPress(e) {
-        if (this.isOpened && e.keyCode === 27) this.close();
+        if (e.keyCode === 27) this.close();
     }
 
     /** Toggle visibility of the slide arrows */
@@ -281,11 +278,28 @@ class PlainGallery extends EventTarget {
             `);
         }
         zone.restore = () => {
+            console.log('----restore',this.state)
             const { rect } = zone;
-            zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px`);
+            //            zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px;
+            //            transform: translate(0,0) scale(1)`);
             zone.transform(0, 0, 1);
-            zone.ontransitionend = () => zone.remove();
         }
+
+        zone.addEventListener('transitionend', () => {
+            const { State, Event } = PlainGallery;
+            console.log('transitionend state=', this.state)
+            // Dispatch custom events
+            if (this.state === State.OPENING) {
+                this.fire(Event.OPEN, this);
+                this.fire(Event.CHANGE, this);
+                this.state = State.OPENED;
+            } else if (this.state === State.CLOSING) {
+                console.log(111111)
+                zone.remove();
+                this.fire(Event.CLOSE, this);
+                this.state = State.CLOSED;
+            }
+        });
 
         // Cache the placeholder and original clones to data source
         const item = this.dataSource[ordinal][index];
@@ -297,10 +311,10 @@ class PlainGallery extends EventTarget {
             item.original = source.cloneNode(true);
             item.original.className = 'plga-image-placeholder';
             // Set src directly will cause animation to freeze
-            zone.ontransitionend = () => {
-                item.original.src = source.originalUrl;
-                item.original.onload = () => item.loaded = true;
-            }
+            //            zone.ontransitionend = () => {
+            //                item.original.src = source.originalUrl;
+            //                item.original.onload = () => item.loaded = true;
+            //            }
         }
 
         if (!item.loaded) zone.append(item.placeholder);
@@ -353,11 +367,11 @@ class PlainGallery extends EventTarget {
 
     /** Close gallery */
     close() {
-        if (this.isOpened) {
+        if (this.state === PlainGallery.State.OPENED) {
+            console.log('this.state: ', this.state)
+            this.state = PlainGallery.State.CLOSING;
             this.shadeMask.fadeOut();
             this.current.restore();
-            this.fire(PlainGallery.Event.CLOSE, this);
-            this.isOpened = false;
         }
     }
 
@@ -472,14 +486,14 @@ PlainGallery.ShadeMask = class {
                 top: 0; left: 0; right: 0; bottom: 0;
                 background: rgba(0, 0, 0, 0);
                 color: #fff;
-                transition: all .3s;
+                transition: all 10.3s;
             }
             .plga-icon {
                 z-index: 999;
                 fill: currentcolor;
                 cursor: pointer;
                 opacity: .8;
-                transition: all .3s;
+                transition: all 10.3s;
                 stroke: rgba(0,0,0,.3);
                 stroke-width: .2;
             }
@@ -509,7 +523,7 @@ PlainGallery.ShadeMask = class {
                 position: absolute;
                 cursor: zoom-in;
                 transform: translate(var(--transX), var(--transY)) scale(var(--scale));
-                transition: all .3s;
+                transition: all 10.3s;
                 will-change: transform;
             }
             .plga-image-placeholder {
