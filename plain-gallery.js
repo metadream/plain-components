@@ -257,9 +257,9 @@ class PlainGallery extends EventTarget {
         if (!item.original && source.originalUrl) {
             item.original = source.cloneNode(true);
             item.original.className = 'plga-image-placeholder';
-            item.original.src = source.originalUrl +'?'+ Math.random();
+            item.original.src = source.originalUrl;
             item.original.onload = function() {
-                this.loaded = true;
+                item.loaded = true;
             }
         }
 
@@ -425,7 +425,7 @@ PlainGallery.ShadeMask = class {
     gallery = null;
     el = PlainGallery.createElement(`<div class="plga-shade-mask">
         <svg class="plga-icon plga-icon-prev" viewBox="0 0 60 60" width="48"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
-        <svg class="plga-icon plga-icon-next" viewBox="0 0 60 60" width="48" transform="rotate(180)"><path d="M29 43l-3 3-16-16 16-16 3 3-13 13 13 13z"/></svg>
+        <svg class="plga-icon plga-icon-next" viewBox="0 0 60 60" width="48"><path d="m31 43 3 3 16-16-16-16-3 3 13 13Z"/></svg>
     </div>`);
 
     constructor(gallery) {
