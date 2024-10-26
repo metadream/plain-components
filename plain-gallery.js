@@ -10,7 +10,7 @@ class PlainGallery extends EventTarget {
 
     // Constants
     static Zoom = { MIN_SCALE: 2, MAX_SCALE: 10, STEP: 1.2 };
-    static Event = { OPEN: 'open', CHANGE: 'change', CLOSE: 'close', IMAGE_LOADED: 'imageLoaded'};
+    static Event = { OPEN: 'open', CHANGE: 'change', CLOSE: 'close', IMAGE_LOADED: 'imageLoaded' };
     static State = { OPENING: 1, OPENED: 2, CLOSING: 3, CLOSED: 4 };
 
     // Utils
@@ -172,9 +172,10 @@ class PlainGallery extends EventTarget {
 
     /** The viewport size changed */
     #onViewportResize() {
+        this.viewport.width = document.documentElement.clientWidth;
+        this.viewport.height = document.documentElement.clientHeight;
+
         if (this.state === PlainGallery.State.OPENED) {
-            this.viewport.width = document.documentElement.clientWidth;
-            this.viewport.height = document.documentElement.clientHeight;
             this.#adaptViewport();
 
             // Update thumbnail size and position to restore
@@ -278,7 +279,7 @@ class PlainGallery extends EventTarget {
             `);
         }
         zone.restore = () => {
-            console.log('----restore',this.state)
+            console.log('----restore', this.state)
             const { rect } = zone;
             //            zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px;
             //            transform: translate(0,0) scale(1)`);
@@ -408,7 +409,7 @@ PlainGallery.Toolbar = class {
                 gallery.on(PlainGallery.Event.CHANGE, () => {
                     const { ordinal, index } = gallery.current;
                     const total = gallery.dataSource[ordinal].length;
-                    el.innerHTML = (index+1) + '/' + total;
+                    el.innerHTML = (index + 1) + '/' + total;
                 });
             }
         });
