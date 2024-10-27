@@ -4,6 +4,7 @@
  *
  * @Copyright (c) 2024 Ai Chen
  * @Repository https://github.com/metadream/plain-gallery
+ * @Version 1.0.0
  * @License MIT
  */
 class PlainGallery extends EventTarget {
