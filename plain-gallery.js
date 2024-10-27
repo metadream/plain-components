@@ -10,8 +10,8 @@ class PlainGallery extends EventTarget {
 
     // Constants
     static Zoom = { MIN_SCALE: 2, MAX_SCALE: 10, STEP: 1.2 };
+    static State = { OPENING: 10, OPENED: 11, SLIDING: 20, CLOSING: 30, CLOSED: 31 };
     static Event = { OPEN: 'open', CHANGE: 'change', CLOSE: 'close', IMAGE_LOADED: 'imageLoaded' };
-    static State = { OPENING: 1, OPENED: 2, CLOSING: 3, CLOSED: 4 };
 
     // Utils
     static createElement(content) {
@@ -30,6 +30,7 @@ class PlainGallery extends EventTarget {
     current = null;
     dataSource = [];
     state = PlainGallery.State.CLOSED;
+    isTransitioning = false;
     shadeMask = new PlainGallery.ShadeMask(this);
     toolbar = new PlainGallery.Toolbar(this);
 
@@ -49,9 +50,9 @@ class PlainGallery extends EventTarget {
 
         // Delegate gallery events
         const { el } = this.shadeMask;
-        el.addEventListener('click', this.#onShadeMaskClick.bind(this));
-        el.addEventListener('wheel', this.#onPreviewZoneWheel.bind(this));
+        el.addEventListener('pointerup', this.#onShadeMaskClick.bind(this));
         el.addEventListener('pointerdown', this.#onPreviewZoneDrag.bind(this));
+        el.addEventListener('wheel', this.#onPreviewZoneWheel.bind(this));
 
         // Traverse all items in groups
         let ordinal = -1; // Namely group index
@@ -79,11 +80,14 @@ class PlainGallery extends EventTarget {
 
     /** Open gallery viewport based on thumbnail element */
     #openViewport(source) {
+        const { OPENING, CLOSED } = PlainGallery.State;
+        if (this.isTransitioning || this.state !== CLOSED) return;
+        this.state = OPENING;
+
         this.current = this.#createPreviewZone(source);
         this.shadeMask.fadeIn();
         this.#toggleSlideArrows();
         this.#adaptViewport(true);
-        this.state = PlainGallery.State.OPENING;
     }
 
     /** Make the image adapt to viewport */
@@ -106,8 +110,8 @@ class PlainGallery extends EventTarget {
     /** Click the mask to slide or close */
     #onShadeMaskClick(e) {
         const { target } = e;
-        const { current, toolbar } = this;
-        const { prevBtn, nextBtn } = this.shadeMask;
+        const { current, shadeMask, toolbar } = this;
+        const { prevBtn, nextBtn } = shadeMask;
 
         if (current.contains(target) || toolbar.el.contains(target)) return;
         if (prevBtn.contains(target) || nextBtn.contains(target)) {
@@ -121,7 +125,7 @@ class PlainGallery extends EventTarget {
     #onPreviewZoneWheel(e) {
         e.preventDefault();
         const { current } = this;
-        if (!current.contains(e.target)) return;
+        if (this.isTransitioning || !current.contains(e.target)) return;
 
         if (e.wheelDelta > 0) current.scale *= PlainGallery.Zoom.STEP
         else current.scale /= PlainGallery.Zoom.STEP;
@@ -137,7 +141,7 @@ class PlainGallery extends EventTarget {
         e.preventDefault();
         const gallery = this;
         const { current } = this;
-        if (!current.contains(e.target)) return;
+        if (this.isTransitioning || !current.contains(e.target)) return;
 
         current.isMoved = false;
         current.startX = e.clientX;
@@ -155,7 +159,7 @@ class PlainGallery extends EventTarget {
         current.onpointerup = current.onpointerout = function (e) {
             this.transX += this.offsetX ?? 0;
             this.transY += this.offsetY ?? 0;
-            this.style.transition = 'all 10.3s';
+            this.style.transition = 'all .3s';
             this.onpointermove = null;
 
             // Click to zoom in/out
@@ -174,15 +178,13 @@ class PlainGallery extends EventTarget {
     #onViewportResize() {
         this.viewport.width = document.documentElement.clientWidth;
         this.viewport.height = document.documentElement.clientHeight;
+        if (this.state === PlainGallery.State.CLOSED) return;
 
-        if (this.state === PlainGallery.State.OPENED) {
-            this.#adaptViewport();
-
-            // Update thumbnail size and position to restore
-            const { current } = this;
-            const { ordinal, index } = current;
-            current.rect = this.#getThumbnail(ordinal, index).getBoundingClientRect();
-        }
+        this.#adaptViewport();
+        // Update thumbnail size and position for restoring next time
+        const { current } = this;
+        const { ordinal, index } = current;
+        current.rect = this.#getThumbnail(ordinal, index).getBoundingClientRect();
     }
 
     /** Press esc key to close */
@@ -201,11 +203,11 @@ class PlainGallery extends EventTarget {
 
     /** Check zoom and drag boundaries */
     #checkBoundary() {
-        const { current } = this;
-        const { rect } = current;
         // Toggle zoom style of the cursor
+        const { current } = this;
         current.style.cursor = current.scale <= current.initScale ? 'zoom-in' : 'zoom-out';
 
+        const { rect } = current;
         const width = rect.width * current.scale;
         const height = rect.height * current.scale;
         const bound = {
@@ -220,24 +222,25 @@ class PlainGallery extends EventTarget {
             bound.y1 = height / 2 - current.centerPoint.y;
             bound.y2 = bound.y1 - (height - this.viewport.height);
         }
-        let beyond = false;
+
+        let outOfBounds = false;
         if (current.transX > bound.x1) {
             current.transX = bound.x1;
-            beyond = true;
+            outOfBounds = true;
         }
         if (current.transX < bound.x2) {
             current.transX = bound.x2;
-            beyond = true;
+            outOfBounds = true;
         }
         if (current.transY > bound.y1) {
             current.transY = bound.y1;
-            beyond = true;
+            outOfBounds = true;
         }
         if (current.transY < bound.y2) {
             current.transY = bound.y2;
-            beyond = true;
+            outOfBounds = true;
         }
-        if (beyond) {
+        if (outOfBounds) {
             current.transform();
         }
     }
@@ -251,10 +254,11 @@ class PlainGallery extends EventTarget {
 
     /** Create the preview zone for image */
     #createPreviewZone(source) {
-        // Additional attributes
-        const { ordinal, index } = source;
-        const rect = source.getBoundingClientRect();
         const zone = PlainGallery.createElement('<div class="plga-preview-zone"></div>');
+        const rect = source.getBoundingClientRect();
+        const { ordinal, index } = source;
+
+        // Additional attributes
         zone.ordinal = ordinal;
         zone.index = index;
         zone.rect = rect;
@@ -272,35 +276,13 @@ class PlainGallery extends EventTarget {
             zone.style.cssText = cssText + text;
         }
         zone.transform = (x, y, s) => {
-            zone.css(`
-                --transX: ${x ?? zone.transX}px;
-                --transY: ${y ?? zone.transY}px;
-                --scale: ${s ?? zone.scale}
-            `);
+            zone.css(`--transX: ${x ?? zone.transX}px; --transY: ${y ?? zone.transY}px; --scale: ${s ?? zone.scale}`);
         }
         zone.restore = () => {
-            console.log('----restore', this.state)
             const { rect } = zone;
-            //            zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px;
-            //            transform: translate(0,0) scale(1)`);
+            zone.css(`left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px;`);
             zone.transform(0, 0, 1);
         }
-
-        zone.addEventListener('transitionend', () => {
-            const { State, Event } = PlainGallery;
-            console.log('transitionend state=', this.state)
-            // Dispatch custom events
-            if (this.state === State.OPENING) {
-                this.fire(Event.OPEN, this);
-                this.fire(Event.CHANGE, this);
-                this.state = State.OPENED;
-            } else if (this.state === State.CLOSING) {
-                console.log(111111)
-                zone.remove();
-                this.fire(Event.CLOSE, this);
-                this.state = State.CLOSED;
-            }
-        });
 
         // Cache the placeholder and original clones to data source
         const item = this.dataSource[ordinal][index];
@@ -311,11 +293,33 @@ class PlainGallery extends EventTarget {
         if (!item.original && source.originalUrl) {
             item.original = source.cloneNode(true);
             item.original.className = 'plga-image-placeholder';
+        }
+
+        // Transition events
+        zone.ontransitionstart = () => {
+            this.isTransitioning = true;
+        }
+        zone.ontransitionend = () => {
+            this.isTransitioning = false;
+            const { State, Event } = PlainGallery;
+
+            // Sets state and dispatch custom events
+            if (this.state === State.OPENING) {
+                this.state = State.OPENED;
+                this.fire(Event.OPEN, this);
+                this.fire(Event.CHANGE, this);
+            } else if (this.state === State.SLIDING) {
+                this.state = State.OPENED;
+                this.fire(Event.CHANGE, this);
+            } else if (this.state === State.CLOSING) {
+                this.state = State.CLOSED;
+                this.fire(Event.CLOSE, this);
+                zone.remove();
+            }
+
             // Set src directly will cause animation to freeze
-            //            zone.ontransitionend = () => {
-            //                item.original.src = source.originalUrl;
-            //                item.original.onload = () => item.loaded = true;
-            //            }
+            item.original.src = source.originalUrl;
+            item.original.onload = () => item.loaded = true;
         }
 
         if (!item.loaded) zone.append(item.placeholder);
@@ -333,6 +337,9 @@ class PlainGallery extends EventTarget {
 
     /** Slide gallery according to the direction */
     slide(direction) {
+        if (this.isTransitioning) return;
+        this.state = PlainGallery.State.SLIDING;
+
         // Stop sliding if thumbnail is null (first or last image)
         const { ordinal, index } = this.current;
         const thumbnail = this.#getThumbnail(ordinal, index + direction);
@@ -359,21 +366,16 @@ class PlainGallery extends EventTarget {
         this.#adaptViewport(false);
         slideImage(-direction, false); // Hide from the screen
         this.current.style.display = 'block';
-
-        setTimeout(() => {
-            slideImage(direction, false);
-            this.fire(PlainGallery.Event.CHANGE, this);
-        });
+        setTimeout(() => slideImage(direction, false));
     }
 
     /** Close gallery */
     close() {
-        if (this.state === PlainGallery.State.OPENED) {
-            console.log('this.state: ', this.state)
-            this.state = PlainGallery.State.CLOSING;
-            this.shadeMask.fadeOut();
-            this.current.restore();
-        }
+        const { OPENED, CLOSING } = PlainGallery.State;
+        if (this.isTransitioning || this.state !== OPENED) return;
+        this.state = CLOSING;
+        this.shadeMask.fadeOut();
+        this.current.restore();
     }
 
     /** Listening for custom event */
@@ -487,19 +489,14 @@ PlainGallery.ShadeMask = class {
                 top: 0; left: 0; right: 0; bottom: 0;
                 background: rgba(0, 0, 0, 0);
                 color: #fff;
-                transition: all 10.3s;
+                transition: background .3s;
             }
             .plga-icon {
                 z-index: 999;
                 fill: currentcolor;
                 cursor: pointer;
-                opacity: .8;
-                transition: all 10.3s;
                 stroke: rgba(0,0,0,.3);
                 stroke-width: .2;
-            }
-            .plga-icon:hover {
-                opacity: 1;
             }
             .plga-icon-prev, .plga-icon-next {
                 padding: 20px;
@@ -524,7 +521,7 @@ PlainGallery.ShadeMask = class {
                 position: absolute;
                 cursor: zoom-in;
                 transform: translate(var(--transX), var(--transY)) scale(var(--scale));
-                transition: all 10.3s;
+                transition: all .3s;
                 will-change: transform;
             }
             .plga-image-placeholder {
