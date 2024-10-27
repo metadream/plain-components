@@ -1,14 +1,20 @@
-## 问题
-* 移动端 左右滑动、双指缩放；鼠标左右滑动
+# Plain Gallery
+Lightweight and independent javascript image gallery component.
 
-## 功能点
-- 轻量级无依赖，没有外部CSS、压缩后大小（photoswipe太大）
-- 支持平滑开启、平滑切换（photoswipe不支持动画切换）
-- 支持点击缩放、滚轮缩放
-- 支持事件监听
-- 支持缩略图自然过渡（photoswipe不支持）
-- 支持自定义工具栏
-- 支持图片分组
-- 支持可视边界内拖动
-- 支持自适应窗口
-- 支持移动端左右滑动、双指缩放？
+Before developing this component, I had been using photoswipe, which is a awesome image preview
+lightbox, but it has a few uncomfortable little problems. First, sliding left and right cannot
+transition smoothly; second, when the next original image is not loaded, it is displayed blank and
+no thumbnail is used as a placeholder; third, because there are too many features to consider, the
+component is too large and a bit complicated to use.
+
+## Features
+- Lightweight and independent (only 10K after minified)
+- Support smooth opening, closing and sliding
+- Support click to zoom, scroll wheel to zoom
+- Support natural transition between thumbnails and original images
+- Support dragging within the visible boundaries
+- Support simple event listening
+- Support adaptive viewport
+- Support custom toolbar
+- Support gallery grouping
+- ~Support swipe left and right, pinch to zoom on mobile~
