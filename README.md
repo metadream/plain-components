@@ -12,7 +12,7 @@ component is too large and a bit complicated to use.
 https://metadream.github.io/plain-gallery/plain-gallery.html
 
 ## Features
-- Lightweight and independent (only 10K after minified)
+- Lightweight and independent (only about 10K after minified)
 - Support smooth opening, closing and sliding
 - Support click to zoom, scroll wheel to zoom
 - Support natural transition between thumbnails and original images
