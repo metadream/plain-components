@@ -319,8 +319,10 @@ class PlainGallery extends EventTarget {
             }
 
             // Set src directly will cause animation to freeze
-            item.original.src = source.originalUrl;
-            item.original.onload = () => item.loaded = true;
+            if (source.originalUrl) {
+                item.original.src = source.originalUrl;
+                item.original.onload = () => item.loaded = true;
+            }
         }
 
         if (!item.loaded) zone.append(item.placeholder);
