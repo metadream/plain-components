@@ -1,11 +1,15 @@
 # Plain Gallery
 Lightweight and independent javascript image gallery component.
 
-Before developing this component, I had been using photoswipe, which is a awesome image preview
+Before developing this component, I had been
+using [photoswipe](https://github.com/dimsemenov/PhotoSwipe), which is a awesome image preview
 lightbox, but it has a few uncomfortable little problems. First, sliding left and right cannot
 transition smoothly; second, when the next original image is not loaded, it is displayed blank and
 no thumbnail is used as a placeholder; third, because there are too many features to consider, the
 component is too large and a bit complicated to use.
+
+## Demo
+https://metadream.github.io/plain-gallery/plain-gallery.html
 
 ## Features
 - Lightweight and independent (only 10K after minified)
