@@ -8,6 +8,9 @@ transition smoothly; second, when the next original image is not loaded, it is d
 no thumbnail is used as a placeholder; third, because there are too many features to consider, the
 component is too large and a bit complicated to use.
 
+There will inevitably be bugs or performance issues in the project, and interested developers are
+welcome to contribute to the improvements, thanks in advance.
+
 ## Demo
 https://metadream.github.io/plain-gallery/plain-gallery.html
 
