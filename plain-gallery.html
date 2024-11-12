@@ -13,16 +13,16 @@
     <img src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=320">
   </a>
   <a href="https://images.unsplash.com/photo-1495360010541-f48722b34f7d">
-    <img src="https://images.unsplash.com/photo-1495360010541-f48722b34f7d?h=320">
+    <img src="https://images.unsplash.com/photo-1495360010541-f48722b34f7d?h=320" alt="浮光一瞬，离愁一身">
   </a>
   <a href="">
-    <img src="https://images.unsplash.com/photo-1561948955-570b270e7c36?h=320">
+    <img src="https://images.unsplash.com/photo-1561948955-570b270e7c36?h=320" alt="落霞孤鹜">
   </a>
   <a href="https://images.unsplash.com/photo-1519389950473-47ba0277781c">
     <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=320">
   </a>
   <a href="https://images.unsplash.com/photo-1550745165-9bc0b252726f">
-    <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=320">
+    <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=320" alt="旺旺？">
   </a>
 </main>
 
@@ -43,6 +43,16 @@
 
 <script>
 const pg = new PlainGallery('main', 'a');
+
+pg.toolbar.register({
+  html: '<div></div>',
+  onInit: function (el) {
+    pg.on('change', (current) => {
+      const img = current.querySelector('img[alt]');
+      el.innerHTML = img ? img.alt : '';
+    });
+  }
+});
 
 pg.toolbar.register({
   position: 'right',

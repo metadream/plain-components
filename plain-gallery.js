@@ -308,10 +308,10 @@ class PlainGallery extends EventTarget {
             if (this.state === State.OPENING) {
                 this.state = State.OPENED;
                 this.fire(Event.OPEN, this);
-                this.fire(Event.CHANGE, this);
+                this.fire(Event.CHANGE, this.current);
             } else if (this.state === State.SLIDING) {
                 this.state = State.OPENED;
-                this.fire(Event.CHANGE, this);
+                this.fire(Event.CHANGE, this.current);
             } else if (this.state === State.CLOSING) {
                 this.state = State.CLOSED;
                 this.fire(Event.CLOSE, this);
