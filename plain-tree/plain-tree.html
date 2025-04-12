@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="plain-tree.css"/>
+  <script src="plain-tree.js"></script>
+</head>
+
+<body>
+  <button onclick="tree.expand()">Expand</button>
+  <button onclick="tree.collapse()">Collapse</button>
+  <div id="tree"></div>
+</body>
+</html>
+
+<script>
+const data = [
+    {
+        id: 1,
+        text: 'Node 1',
+        children: [
+            {
+                id: 11,
+                text: 'Node 1.1',
+                children: [
+                    {  id: 111, text: 'Node 1.1.1' },
+                    {  id: 112, text: 'Node 1.1.2', children: [{  id: 1121, text: 'Node 1.1.2.1'}] }
+                ]
+            },
+            {  id: 12, text: 'Node 1.2' }
+        ]
+    },
+    {
+        id: 2,
+        text: 'Node 2',
+        children: [
+            {  id: 21, text: 'Node 2.1' },
+            {  id: 22, text: 'Node 2.2' }
+        ]
+    }
+];
+
+const tree = new PlainTree('#tree',{
+    depth: 2,
+    data,//: [{ id: 0, text: 'Root', children: data }],
+    onNodeClick: (id) => {
+      console.log('id=',id);
+    },
+    contextMenu: [{
+        text: 'Add',
+        onClick: (node) => {
+            const rnd = Math.random();
+            const newNode = { id: rnd, text: rnd, children: [] };
+            tree.addNode(newNode, node.id);
+        }
+    },{
+        text: 'Update',
+        onClick: (node) => {
+            node.text = 'New Node';
+            tree.updateNode(node);
+        }
+      },{
+        text: 'Delete',
+        onClick: (node) => {
+            tree.removeNode(node);
+        }
+    }]
+});
+</script>
