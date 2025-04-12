@@ -1,5 +1,3 @@
-// TODO column.width是否起作用？
-
 class PlainTable {
     #container;
     #options;
@@ -12,8 +10,9 @@ class PlainTable {
         this.#container = typeof container === 'string'
             ? document.querySelector(container) : container;
         this.#options = Object.assign({
+            width: 0,
             height: 0,
-            bordered: true,
+            bordered: false,
             frozenColumns: [0, 0],
             columns: [],
             data: []
@@ -51,7 +50,7 @@ class PlainTable {
         // 添加表头列
         const headRow = this.#headTable.insertRow();
         for (const column of this.#options.columns) {
-            const th = this.#createElement(`<th data-field="${column.field}" style="width:${column.width}">${column.title}</th>`)
+            const th = this.#createElement(`<th data-field="${column.field}">${column.title}</th>`)
             headRow.append(th);
         }
 
@@ -61,10 +60,13 @@ class PlainTable {
 
         // 创建空表体
         this.#plainBody = this.#createElement('<div class="plain-table-body"></div>');
-        if (this.#options.height && this.#options.height > 0) {
+        if (this.#options.height) {
             this.#plainBody.style.height = this.#options.height + 'px';
         }
         this.#bodyTable = this.#createElement('table');
+        if (this.#options.width) {
+            this.#bodyTable.style.minWidth = this.#options.width + 'px';
+        }
         this.#plainBody.append(this.#bodyTable);
         this.#container.append(this.#plainBody);
     }
@@ -130,7 +132,7 @@ class PlainTable {
         for (const row of rows) {
             let offset = 0;
             const placeholder = row.querySelector('.plain-table-placeholder');
-            if (placeholder) offset = 15;
+            if (placeholder) offset = 10;
 
             const cols = row.cells;
             for (let i = cols.length - 1; i >= 0; i--) {

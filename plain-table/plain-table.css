@@ -22,11 +22,39 @@
 }
 
 .plain-table-body {
-    overflow: auto scroll;
+    overflow: auto;
 }
 
-.plain-table-body table {
-    min-width: 800px;
+.plain-table-body::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.plain-table-body::-webkit-scrollbar:horizontal {
+    border-top: 1px solid #eee;
+}
+
+.plain-table-body::-webkit-scrollbar:vertical {
+    border-left: 1px solid #eee;
+}
+
+.plain-table-body::-webkit-scrollbar-thumb {
+    background: #999;
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+
+.plain-table-body::-webkit-scrollbar-thumb:vertical {
+    border-right: 2px solid transparent;
+}
+
+.plain-table-body::-webkit-scrollbar-thumb:horizontal {
+    border-bottom: 2px solid transparent;
+}
+
+.plain-table-body::-webkit-scrollbar-thumb:hover {
+    background: #888;
+    background-clip: content-box;
 }
 
 .plain-table-head th, .plain-table-body td {
@@ -38,7 +66,7 @@
     text-overflow: ellipsis;
 }
 
-.plain-table-bordered th, .plain-table-bordered td {
+.plain-table-bordered th:not(:last-child), .plain-table-bordered td:not(:last-child) {
     border-right: 1px solid #eee;
 }
 
@@ -48,15 +76,14 @@
     text-align: left;
     background: #f6f6f6;
     border-bottom: 1px solid #ddd;
-    border-right: 1px solid #eee;
 }
 
-.plain-table-body td {
+.plain-table-body tr:not(:last-child) td {
     border-bottom: 1px solid #eee;
 }
 
 .plain-table-placeholder {
-    width: 15px !important;
+    width: 10px !important;
     right: 0;
 }
 

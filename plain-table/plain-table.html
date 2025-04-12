@@ -13,16 +13,17 @@
 
 <script>
 new PlainTable('#table', {
-   height: 250,
+   width: 800,
+   height: 260,
    bordered: true,
    frozenColumns: [2,1],
    columns : [
-    { title: '姓名', field: 'name', width: '100px' },
-    { title: '年龄', field: 'age', width: '100px' },
-    { title: '地址', field: 'address', width: '' },
-    { title: '薪资', field: 'salary', width: '100px' },
-    { title: '部门', field: 'department', width: '100px' },
-    { title: '操作', field: 'action', width: '100px' }
+    { title: '姓名', field: 'name' },
+    { title: '年龄', field: 'age' },
+    { title: '地址', field: 'address' },
+    { title: '薪资', field: 'salary' },
+    { title: '部门', field: 'department' },
+    { title: '操作', field: 'action' },
   ],
   data: [
     { name: '用户 0', age: 32, address: '地址 0, 城市 0', salary: 5000, department: '部门 0', action: '操作' },
