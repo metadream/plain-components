@@ -48,15 +48,36 @@ class PlainTable {
         this.#container.append(this.#plainHead);
 
         // 添加表头列
-        const headRow = this.#headTable.insertRow();
-        for (const column of this.#options.columns) {
-            const th = this.#createElement(`<th data-field="${column.field}">${column.title}</th>`)
-            headRow.append(th);
+        const { columns } = this.#options;
+        const hasGroups = !!columns.find(v => v.columns);
+
+        let headRow = this.#headTable.insertRow();
+        for (const column of columns) {
+            if (column.columns) {
+                const colspan = column.columns.length;
+                const th = this.#createElement(`<th colspan="${colspan}">${column.title}</th>`)
+                headRow.append(th);
+            } else {
+                const th = this.#createElement(`<th data-field="${column.field}" rowspan="2">${column.title}</th>`)
+                headRow.append(th);
+            }
         }
 
         // 在最后一列添加滚动条占位
-        const placeholder = this.#createElement('<th class="plain-table-cell-frozen plain-table-placeholder"></th>');
+        const rowspan = hasGroups ? 2 : 1;
+        const placeholder = this.#createElement(`<th rowspan=${rowspan} class="plain-table-cell-frozen plain-table-placeholder"></th>`);
         headRow.append(placeholder);
+
+        if (hasGroups) {
+            headRow = this.#headTable.insertRow();
+            for (let column of columns) {
+                if (!column.columns) continue;
+                for (column of column.columns) {
+                    const th = this.#createElement(`<th data-field="${column.field}">${column.title}</th>`)
+                    headRow.append(th);
+                }
+            }
+        }
 
         // 创建空表体
         this.#plainBody = this.#createElement('<div class="plain-table-body"></div>');
@@ -94,7 +115,7 @@ class PlainTable {
             let width = bodyCells[i].getBoundingClientRect().width + 'px';
             headCells[i].style.width = width;
         }
-        this.#freezeColumns();
+        // this.#freezeColumns();
     }
 
     /** 冻结列 */
