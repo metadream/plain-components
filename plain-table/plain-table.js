@@ -76,7 +76,7 @@ class PlainTable {
         for (const item of this.#options.data) {
             const bodyRow = this.#bodyTable.insertRow();
             for (const column of this.#options.columns) {
-                bodyRow.insertCell().innerHTML = `<div>${item[column.field]||''}</div>`;
+                bodyRow.insertCell().innerHTML = `<div>${item[column.field] || ''}</div>`;
             }
         }
     }
