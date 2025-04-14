@@ -61,6 +61,9 @@
     position: relative;
     padding: 8px;
     overflow-wrap: break-word;
+}
+
+.plain-table-head th > div, .plain-table-body td > div {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

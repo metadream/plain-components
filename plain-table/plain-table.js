@@ -50,7 +50,7 @@ class PlainTable {
         // 添加表头列
         const headRow = this.#headTable.insertRow();
         for (const column of this.#options.columns) {
-            const th = this.#createElement(`<th data-field="${column.field}">${column.title}</th>`)
+            const th = this.#createElement(`<th data-field="${column.field}"><div>${column.title}</div></th>`)
             headRow.append(th);
         }
 
@@ -76,8 +76,7 @@ class PlainTable {
         for (const item of this.#options.data) {
             const bodyRow = this.#bodyTable.insertRow();
             for (const column of this.#options.columns) {
-                const bodyCell = bodyRow.insertCell();
-                bodyCell.textContent = item[column.field];
+                bodyRow.insertCell().innerHTML = `<div>${item[column.field]||''}</div>`;
             }
         }
     }
