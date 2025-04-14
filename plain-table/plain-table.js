@@ -50,7 +50,7 @@ class PlainTable {
         // 添加表头列
         const headRow = this.#headTable.insertRow();
         for (const column of this.#options.columns) {
-            const th = this.#createElement(`<th data-field="${column.field}"><div>${column.title}</div></th>`)
+            const th = this.#createElement(`<th><div>${column.title}</div></th>`)
             headRow.append(th);
         }
 
