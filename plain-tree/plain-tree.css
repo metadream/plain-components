@@ -1,0 +1,71 @@
+.plaintree, .plaintree *::before, .plaintree *::after {
+    box-sizing: border-box;
+    font-size: 15px
+}
+
+.plaintree-group {
+    list-style: none;
+    margin: 0;
+    padding-left: 23px;
+    overflow: hidden;
+    transition: height 150ms ease-out, opacity 150ms ease-out
+}
+
+.plaintree-node {
+    padding: 2px 0;
+    cursor: pointer
+}
+
+.plaintree-selected > .plaintree-label {
+    font-weight: 600
+}
+
+.plaintree-switcher, .plaintree-leaf {
+    display: inline-block;
+    vertical-align: middle;
+    transition: transform 150ms ease-out;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    margin-right: 7px
+}
+
+.plaintree-switcher {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z'/%3E%3Cpath d='M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z'/%3E%3C/svg%3E")
+}
+
+.plaintree-leaf {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23bbb' viewBox='0 0 16 16'%3E%3Cpath d='M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z'/%3E%3Cpath d='M11.354 4.646a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E")
+}
+
+.plaintree-collapsed > .plaintree-switcher {
+    transform: rotate(-90deg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z'/%3E%3Cpath d='M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z'/%3E%3C/svg%3E")
+}
+
+.plaintree-collapsed > .plaintree-group {
+    height: 0
+}
+
+.plaintree-label {
+    vertical-align: middle
+}
+
+.plaintree-context-menu {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    padding: 5px 0;
+}
+
+.plaintree-context-menu div {
+    padding: 5px 20px;
+    cursor: pointer;
+}
+
+.plaintree-context-menu div:hover {
+    background-color: #f0f0f0;
+}
