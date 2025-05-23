@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script src="src/PlainEditor.js"></script>
+</head>
+
+<body>
+    <div id="container" style="border: #666 1px solid"></div>
+    <button onclick="getContent()">Get</button>
+
+    <script>
+        const editor = new PlainEditor({
+            container: '#container',
+            editable: true,
+
+            toolbar: [
+                Heading, Bold, OrderedList, UnorderedList, Quote, Link, Image
+            ],
+            onReady: function () {
+
+            },
+            onChange: function (api, event) {
+
+            }
+        });
+
+        function getContent() {
+            console.log(editor.content)
+        }
+    </script>
+</body>
+
+</html>
