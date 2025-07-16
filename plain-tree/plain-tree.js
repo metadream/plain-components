@@ -41,6 +41,11 @@ class PlainTree {
         this.#render();
     }
 
+    /** Get node by id */
+    getNode(id) {
+        return this.#nodeData[id];
+    }
+
     /** Expand the tree (expand the node when the parameter is specified, otherwise expand the root) */
     expand(node) {
         node = node || this.#options.data;
@@ -48,6 +53,9 @@ class PlainTree {
             node.forEach(n => this.expand(n));
             return;
         }
+        // Select node (change style)
+        this.#selectNode(node.id);
+
         // If the node is in a collapsed state, expand it
         const $node = this.#nodeElements[node.id];
         if ($node.classList.contains('plaintree-collapsed')) {
