@@ -53,6 +53,9 @@ class PlainTree {
             node.forEach(n => this.expand(n));
             return;
         }
+
+        // First expand all parent nodes to ensure the target node is visible
+        this.#expandParentChain(node);
         // Select node (change style)
         this.#selectNode(node.id);
 
@@ -166,7 +169,8 @@ class PlainTree {
         data.forEach(node => {
             // Cache node data and elements
             node.depth = depth;
-            const $node = this.#createNodeElement(node, depth === this.#options.depth);
+            const shouldCollapse = depth >= this.#options.depth;
+            const $node = this.#createNodeElement(node, shouldCollapse);
             this.#nodeElements[node.id] = $node;
             this.#nodeData[node.id] = node;
 
@@ -178,6 +182,32 @@ class PlainTree {
             $group.append($node);
         });
         return $group;
+    }
+
+    /** Helper method to expand all parent nodes of a given node */
+    #expandParentChain(node) {
+        // Find the parent node by searching through the tree
+        const findParent = (currentNode, targetId) => {
+            if (!currentNode.children) return null;
+            for (const child of currentNode.children) {
+                if (child.id === targetId) return currentNode;
+                const found = findParent(child, targetId);
+                if (found) return found;
+            }
+            return null;
+        };
+
+        let parent = findParent({ children: this.#options.data }, node.id);
+        while (parent) {
+            // Expand the parent if it's collapsed
+            const $parent = this.#nodeElements[parent.id];
+            if ($parent && $parent.classList.contains('plaintree-collapsed')) {
+                const switcher = $parent.querySelector('.plaintree-switcher');
+                switcher && switcher.click();
+            }
+            // Move up to the next parent
+            parent = findParent({ children: this.#options.data }, parent.id);
+        }
     }
 
     #bindEvents($root) {
