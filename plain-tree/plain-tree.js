@@ -46,6 +46,16 @@ class PlainTree {
         return this.#nodeData[id];
     }
 
+    /**
+     * Retrieve the complete node path (from root to target).
+     * @return {array} - [root, subnode, ..., targetnode]
+     */
+    getNodePath(node) {
+        const path = [];
+        this.#findNodePath(this.#options.data, node, path);
+        return path;
+    }
+
     /** Expand the tree (expand the node when the parameter is specified, otherwise expand the root) */
     expand(node) {
         node = node || this.#options.data;
@@ -184,6 +194,21 @@ class PlainTree {
         return $group;
     }
 
+    /** Find the path recursively and store it in an array */
+    #findNodePath(nodes, target, path) {
+        for (const node of nodes) {
+            path.push(node);
+            if (node.id === target.id) {
+                return true;
+            }
+            if (node.children && this.#findNodePath(node.children, target, path)) {
+                return true;
+            }
+            path.pop();
+        }
+        return false;
+    }
+
     /** Helper method to expand all parent nodes of a given node */
     #expandParentChain(node) {
         // Find the parent node by searching through the tree
@@ -249,7 +274,7 @@ class PlainTree {
     #onNodeClick(id) {
         this.#selectNode(id);
         if (this.#options.onNodeClick) {
-            this.#options.onNodeClick.call(this, this.#nodeData[id]);
+            this.#options.onNodeClick(this.#nodeData[id], this);
         }
     }
 
