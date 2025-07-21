@@ -51,6 +51,11 @@ class PlainTree {
         return this.#nodeData[id];
     }
 
+    /** Get selected node */
+    getSelectedNode() {
+        return this.#selectedNode;
+    }
+
     /**
      * Retrieve the complete node path (from root to target).
      * @return {array} - [root, subnode, ..., targetnode]
