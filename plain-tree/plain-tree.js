@@ -41,6 +41,11 @@ class PlainTree {
         this.#render();
     }
 
+    /** Get tree data */
+    getData() {
+        return this.#nodeData;
+    }
+
     /** Get node by id */
     getNode(id) {
         return this.#nodeData[id];
@@ -50,10 +55,25 @@ class PlainTree {
      * Retrieve the complete node path (from root to target).
      * @return {array} - [root, subnode, ..., targetnode]
      */
-    getNodePath(node) {
+    getPath(node) {
         const path = [];
         this.#findNodePath(this.#options.data, node, path);
         return path;
+    }
+
+    /** Update and render tree with new data */
+    update(newData) {
+        // Clear existing tree
+        this.#container.innerHTML = '';
+        this.#nodeData = {};
+        this.#nodeElements = {};
+        this.#selectedNode = null;
+        this.#selectedElement = null;
+
+        // Update options with new data
+        this.#options.data = newData;
+        this.#createContextMenu();
+        this.#render();
     }
 
     /** Expand the tree (expand the node when the parameter is specified, otherwise expand the root) */
