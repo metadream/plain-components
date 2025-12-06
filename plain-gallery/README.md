@@ -12,7 +12,7 @@ There will inevitably be bugs or performance issues in the project, and interest
 welcome to contribute to the improvements, thanks in advance.
 
 ## Demo
-https://metadream.github.io/plain-gallery/plain-gallery.html
+https://metadream.github.io/plain-components/plain-gallery/plain-gallery.html
 
 ## Features
 - Lightweight and independent (only about 10K after minified)
